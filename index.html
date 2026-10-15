@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#08111a" />
+    <meta name="description" content="Interactive 6-DOF servo-driven robot arm with real-time forward kinematics and Denavit–Hartenberg calculations." />
+    <title>Servo Arm · Kinematics Lab</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand-mark" aria-hidden="true"><span>R</span><small>06</small></div>
+      <div class="brand-copy">
+        <p class="eyebrow">MECHANISM STUDY <span>/</span> FORWARD KINEMATICS</p>
+        <h1>Six axes. One precise position.</h1>
+        <p class="subtitle">A servo-driven arm, explored through live joint control and Denavit–Hartenberg transforms.</p>
+      </div>
+      <div class="header-meta">
+        <div class="sim-status"><span class="status-dot"></span>SIMULATION LIVE</div>
+        <div class="model-meta"><span>MODEL</span><strong>6R · DH STANDARD</strong></div>
+      </div>
+    </header>
+
+    <main id="workspace">
+      <section class="visual-card" aria-label="Interactive 3D robotic arm model">
+        <div id="viewport">
+          <div class="viewport-topline">
+            <div><span class="micro-label">ARM SIMULATION</span><span class="viewport-divider">/</span><span class="coordinate-tag">BASE FRAME · METERS</span></div>
+            <div class="dof-pill"><span>6</span> REVOLUTE DOF</div>
+          </div>
+          <div class="viewport-bottomline">
+            <div class="view-hint"><span class="mouse-icon" aria-hidden="true"></span>DRAG TO ORBIT <i>·</i> SCROLL TO ZOOM</div>
+            <div class="axis-legend"><span><b class="axis-x"></b>X</span><span><b class="axis-y"></b>Y</span><span><b class="axis-z"></b>Z</span></div>
+          </div>
+          <div class="viewport-readout" aria-live="polite">
+            <span class="readout-kicker">TOOL CENTER POINT</span>
+            <strong id="viewport-position">X 0.000 <em>Y 0.000</em> Z 0.000</strong>
+          </div>
+        </div>
+      </section>
+
+      <aside id="panel" aria-label="Robot controls and kinematics">
+        <section class="panel-section controls-section">
+          <div class="section-heading">
+            <div><p class="section-kicker">01 / INPUT</p><h2>Joint controls</h2></div>
+            <span class="count-chip">6 DOF</span>
+          </div>
+          <p class="section-description">Each servo sets one revolute axis. Drag a slider or type an angle.</p>
+          <div id="sliders" class="slider-list"></div>
+          <div class="button-row">
+            <button id="reset" class="button button-secondary" type="button"><span aria-hidden="true">↺</span> Home pose</button>
+            <button id="random" class="button button-primary" type="button"><span aria-hidden="true">✳</span> Randomize</button>
+          </div>
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="showAxes" checked /><span class="switch"></span><span>World axes</span></label>
+            <label class="toggle"><input type="checkbox" id="showFrames" checked /><span class="switch"></span><span>DH frames</span></label>
+            <label class="toggle"><input type="checkbox" id="animate" /><span class="switch"></span><span>Demo motion</span></label>
+          </div>
+        </section>
+
+        <section class="panel-section pose-section">
+          <div class="section-heading">
+            <div><p class="section-kicker">02 / OUTPUT</p><h2>Predicted tool pose</h2></div>
+            <span class="live-tag"><i></i>LIVE</span>
+          </div>
+          <div class="position-grid">
+            <div class="position-cell"><span>X <small>m</small></span><strong id="pos-x">0.000</strong></div>
+            <div class="position-cell"><span>Y <small>m</small></span><strong id="pos-y">0.000</strong></div>
+            <div class="position-cell"><span>Z <small>m</small></span><strong id="pos-z">0.000</strong></div>
+          </div>
+          <div class="orientation-row">
+            <span class="orientation-title">ORIENTATION <small>ZYX EULER</small></span>
+            <div><b id="rpy-roll">0.0°</b><small>ROLL</small></div>
+            <div><b id="rpy-pitch">0.0°</b><small>PITCH</small></div>
+            <div><b id="rpy-yaw">0.0°</b><small>YAW</small></div>
+          </div>
+          <details class="matrix-details">
+            <summary>View transform matrix <span>T₀⁶</span></summary>
+            <div class="matrix-wrap"><table id="transform-matrix" aria-label="Tool transform matrix"><tbody></tbody></table></div>
+          </details>
+        </section>
+
+        <section class="panel-section dh-section">
+          <div class="section-heading">
+            <div><p class="section-kicker">03 / GEOMETRY</p><h2>DH parameters</h2></div>
+            <span class="unit-chip">SI UNITS</span>
+          </div>
+          <p class="section-description">Standard DH convention. θ is the live servo angle; link dimensions are fixed.</p>
+          <div class="table-wrap">
+            <table id="dh-table">
+              <thead><tr><th>i</th><th>θᵢ <small>deg</small></th><th>dᵢ <small>m</small></th><th>aᵢ <small>m</small></th><th>αᵢ <small>deg</small></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="frames-block">
+            <div class="frames-title">JOINT FRAME ORIGINS <small>IN BASE COORDINATES · m</small></div>
+            <div id="frames" class="frame-list"></div>
+          </div>
+        </section>
+
+        <section class="panel-section math-section">
+          <div class="section-heading">
+            <div><p class="section-kicker">04 / CALCULATION</p><h2>Forward kinematics</h2></div>
+          </div>
+          <div class="equation-card">
+            <div class="equation-main">T₀⁶ = A₁(θ₁) · A₂(θ₂) · · · A₆(θ₆)</div>
+            <div class="equation-sub">Aᵢ = Rz(θᵢ) Tz(dᵢ) Tx(aᵢ) Rx(αᵢ)</div>
+            <div class="equation-rule"></div>
+            <div class="equation-main">p<sub>TCP</sub> = T₀⁶ · [0, 0, 0, 1]ᵀ</div>
+            <div class="equation-sub">R = T₀⁶[0:3, 0:3] &nbsp;·&nbsp; pose = (p, R)</div>
+          </div>
+          <details class="dh-formula">
+            <summary>Expand the DH transform</summary>
+            <div class="matrix-formula" aria-label="Standard Denavit Hartenberg homogeneous transform">
+              <span>Aᵢ =</span>
+              <span class="bracket">⎡ cθ &nbsp; −sθcα &nbsp; sθsα &nbsp; acθ ⎤<br />⎢ sθ &nbsp; cθcα &nbsp; −cθsα &nbsp; asθ ⎥<br />⎢ 0 &nbsp;&nbsp;&nbsp; sα &nbsp;&nbsp;&nbsp;&nbsp; cα &nbsp;&nbsp;&nbsp;&nbsp; d ⎥<br />⎣ 0 &nbsp;&nbsp;&nbsp; 0 &nbsp;&nbsp;&nbsp;&nbsp; 0 &nbsp;&nbsp;&nbsp; 1 ⎦</span>
+            </div>
+            <p class="formula-note">cθ = cos θᵢ, sθ = sin θᵢ, cα = cos αᵢ, and sα = sin αᵢ. Multiply transforms from base to tool.</p>
+          </details>
+          <p class="assumption-note"><span>MODEL NOTE</span> Ideal revolute servos and rigid links; this predicts geometry only (no load, backlash, or deflection model).</p>
+        </section>
+
+        <section class="panel-section glossary-section" aria-labelledby="glossary-heading">
+          <div class="section-heading">
+            <div><p class="section-kicker">05 / REFERENCE</p><h2 id="glossary-heading">Plain-language glossary</h2></div>
+          </div>
+          <p class="section-description">A quick guide to the terms above. The model and calculations stay first; use this when you want a simpler explanation.</p>
+          <dl class="glossary-list">
+            <div class="glossary-item"><dt>Kinematics</dt><dd>The geometry of how an arm moves. Here, position is calculated from joint angles and link sizes—not from forces or motor power.</dd></div>
+            <div class="glossary-item"><dt>Degree of freedom</dt><dd>One independent way the arm can move. This arm has six rotary joints, so six angle values describe its pose.</dd></div>
+            <div class="glossary-item"><dt>Joint &amp; link</dt><dd>A joint is a rotating connection; a link is the rigid segment between joints. The servos turn the joints, and the links carry the motion.</dd></div>
+            <div class="glossary-item"><dt>Servo angle (θ)</dt><dd>The commanded turn from a joint’s zero reference, measured here in degrees. A real servo may need its zero and travel calibrated.</dd></div>
+            <div class="glossary-item"><dt>Coordinate frame</dt><dd>A local set of X, Y, and Z directions—like a tiny ruler attached to the base or a joint. Frame origins are reported in base coordinates.</dd></div>
+            <div class="glossary-item"><dt>D-H parameters</dt><dd>Four values that describe each step between frames: θ turns about Z, d shifts along Z, a shifts along X, and α twists about X. In this model, θ changes as you move a control.</dd></div>
+            <div class="glossary-item"><dt>Transform matrix</dt><dd>A 4 × 4 table that stores a frame’s rotation and position together. Multiplying the six joint transforms carries the base frame out to the tool.</dd></div>
+            <div class="glossary-item"><dt>Forward kinematics</dt><dd>The calculation that uses the six servo angles and known link dimensions to predict where the tool is and which way it points.</dd></div>
+            <div class="glossary-item"><dt>TCP / end effector</dt><dd>The tool-center point is the chosen endpoint of the gripper. The readout gives its position relative to the base, plus its orientation.</dd></div>
+            <div class="glossary-item"><dt>RPY (ZYX)</dt><dd>Roll, pitch, and yaw are three angles used to describe orientation. This readout uses the ZYX rotation order shown beside it.</dd></div>
+            <div class="glossary-item"><dt>Rigid-link assumption</dt><dd>The model treats every link as perfectly stiff and each joint as exact. Real arms can flex, have backlash, or miss a command slightly.</dd></div>
+          </dl>
+        </section>
+        <footer class="panel-footer">KINEMATICS LAB <span>·</span> 6R ARTICULATED MANIPULATOR</footer>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
