@@ -108,6 +108,7 @@ test('the app boots with both views mounted and no runtime errors', async (t) =>
   }
   window.Element.prototype.getBoundingClientRect = () => ({ x: 0, y: 0, top: 0, left: 0, right: 900, bottom: 640, width: 900, height: 640 });
   window.Element.prototype.setPointerCapture = () => {};
+  window.Element.prototype.releasePointerCapture = () => {};
   window.ResizeObserver = class { observe() {} unobserve() {} disconnect() {} };
   override('ResizeObserver', window.ResizeObserver);
 
@@ -148,40 +149,50 @@ test('the app boots with both views mounted and no runtime errors', async (t) =>
 
   assert.deepEqual(errors, [], 'mounting the app must not throw');
   assert.ok($('#six-viewport canvas'), 'the six-axis viewport gets a canvas');
-  assert.ok($('#planar-viewport canvas'), 'the planar viewport gets a canvas');
-  assert.equal(document.querySelectorAll('#p-sliders .joint-control').length, 3, 'planar joint controls are built');
+  assert.ok($('#spatial-viewport canvas'), 'the shoulder-elbow viewport gets a canvas');
+  assert.equal(document.querySelectorAll('#s-sliders .joint-control').length, 3, 'the three joints get controls');
   assert.equal(document.querySelectorAll('#dh-table tbody tr').length, 6, 'the DH table is still built');
 
-  // Planar readouts come from the forward solution, and the tool stays in-plane.
-  assert.equal($('#p-height').textContent, '0.000 m');
-  assert.notEqual($('#p-pos-x').textContent, '0.000');
+  // The home pose throws the elbow above the mounting plane and rests the tool
+  // on the lower plane: that is the whole point of this model.
+  assert.equal($('#s-elbow-state').textContent, 'HIGH');
+  assert.equal($('#s-contact-state').textContent, 'PLANE 2');
 
   // Switching tabs must not throw, even though the six-axis view is hidden.
-  $('#tab-planar').click();
+  $('#tab-spatial').click();
   tick(2);
-  assert.equal($('[data-tab].is-active').dataset.tab, 'planar');
+  assert.equal($('[data-tab].is-active').dataset.tab, 'spatial');
 
-  // Goal-pose control solves joints and reports reachability.
-  $('[data-planar-mode="ik"]').click();
-  const targetX = $('#p-target-x');
-  targetX.value = '0.5';
-  targetX.dispatchEvent(new window.Event('change', { bubbles: true }));
-  const targetY = $('#p-target-y');
-  targetY.value = '0.3';
-  targetY.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // Goal control solves joints for a point on the lower plane.
+  $('[data-spatial-mode="ik"]').click();
+  $('[data-spatial-plane="lower"]').click();
+  const goalX = $('#s-goal-x');
+  goalX.value = '0.45';
+  goalX.dispatchEvent(new window.Event('change', { bubbles: true }));
+  const goalY = $('#s-goal-y');
+  goalY.value = '0.15';
+  goalY.dispatchEvent(new window.Event('change', { bubbles: true }));
   tick(2);
-  assert.equal($('#p-reach-status').textContent, 'TARGET IN REACH');
+  assert.equal($('#s-reach-status').textContent, 'GOAL IN REACH');
+  assert.equal($('#s-pos-z').textContent, '0.450');
+  assert.equal($('#s-contact-state').textContent, 'PLANE 2');
 
-  targetX.value = '4';
-  targetX.dispatchEvent(new window.Event('change', { bubbles: true }));
+  // A far goal is clamped rather than throwing.
+  goalX.value = '4';
+  goalX.dispatchEvent(new window.Event('change', { bubbles: true }));
   tick(2);
-  assert.equal($('#p-reach-status').textContent, 'CLAMPED TO WORKSPACE');
+  assert.equal($('#s-reach-status').textContent, 'CLAMPED TO WORKSPACE');
 
-  // Dragging on the floor plane moves the goal.
-  const canvas = $('#planar-viewport canvas');
-  canvas.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, clientX: 430, clientY: 300, button: 0 }));
-  canvas.dispatchEvent(new window.MouseEvent('pointermove', { bubbles: true, clientX: 470, clientY: 320, button: 0 }));
-  canvas.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true, clientX: 470, clientY: 320, button: 0 }));
+  // Clicking a bench moves the goal; dragging must not.
+  const canvas = $('#spatial-viewport canvas');
+  $('[data-spatial-plane="mount"]').click();
+  const beforeDrag = goalX.value;
+  canvas.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, clientX: 500, clientY: 400, button: 0 }));
+  canvas.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true, clientX: 570, clientY: 450, button: 0 }));
+  tick(2);
+  assert.equal(goalX.value, beforeDrag, 'an orbit drag must not move the goal');
+  canvas.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, clientX: 620, clientY: 430, button: 0 }));
+  canvas.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true, clientX: 620, clientY: 430, button: 0 }));
   tick(2);
 
   // Back to the six-axis tab; sliders and toggles still work.

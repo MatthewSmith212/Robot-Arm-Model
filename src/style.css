@@ -507,11 +507,11 @@ h2 { margin: 0; color: #e7eff1; font-size: 15px; line-height: 1.2; font-weight: 
 /* ------------------------------------------------------------------ *
  * Planar tab: view switcher, mode controls, metrics
  * ------------------------------------------------------------------ */
-#planar-viewport {
+#spatial-viewport {
   touch-action: none;
   background:
-    radial-gradient(ellipse at 46% 40%, rgba(22, 50, 57, .55), transparent 62%),
-    linear-gradient(160deg, #0d1a23 0%, #08121a 62%, #07101a 100%);
+    radial-gradient(ellipse at 48% 38%, rgba(24, 54, 60, .55), transparent 64%),
+    linear-gradient(160deg, #0e1b24 0%, #08121a 62%, #06101a 100%);
 }
 
 .view-switch {
@@ -651,7 +651,7 @@ h2 { margin: 0; color: #e7eff1; font-size: 15px; line-height: 1.2; font-weight: 
   .tab-copy small { display: none; }
   .tab-panel { grid-template-columns: 1fr; gap: 13px; height: auto; }
   .tab-panel > .visual-card { position: relative; height: min(62vh, 570px); min-height: 390px; }
-  #planar-viewport { min-height: 0; }
+  #spatial-viewport { min-height: 0; }
   .model-panel { height: auto; overflow: visible; }
 }
 
@@ -711,3 +711,78 @@ h2 { margin: 0; color: #e7eff1; font-size: 15px; line-height: 1.2; font-weight: 
   .visual-card { height: 100%; }
   .viewport { min-height: 0; }
 }
+
+/* ------------------------------------------------------------------ *
+ * Spatial arm tab
+ * ------------------------------------------------------------------ */
+.segmented-planes { flex-wrap: wrap; }
+.segmented-planes > span { margin-right: 6px; }
+.segmented-planes button { font-size: 8px; padding: 5px 9px; }
+.field-row-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.goal-plane-note { margin: 0; color: #80939b; font-size: 9px; line-height: 1.5; }
+.goal-plane-note b { color: #b9cbcb; font-weight: 600; }
+.metric-row-single { margin-top: 9px; }
+.metric-row-single > div { min-height: 34px; align-content: center; }
+
+.joint-hint {
+  margin: 3px 0 0;
+  color: #6b7f88;
+  font-size: 8px;
+  line-height: 1.5;
+}
+.range-limits em {
+  color: #5f737d;
+  font: 7px var(--mono);
+  font-style: normal;
+  letter-spacing: .2px;
+}
+
+#s-link-table, #s-plane-table { width: 100%; border-collapse: collapse; text-align: right; }
+#s-link-table th, #s-plane-table th {
+  padding: 6px 3px;
+  border-bottom: 1px solid rgba(145, 170, 180, .15);
+  color: #82949d;
+  font: 8px var(--mono);
+  white-space: nowrap;
+}
+#s-link-table th:first-child, #s-link-table td:first-child,
+#s-plane-table th:first-child, #s-plane-table td:first-child { text-align: left; }
+#s-link-table th small { display: block; margin-top: 2px; color: #536a75; font: 7px var(--mono); }
+#s-link-table td, #s-plane-table td {
+  padding: 6px 3px;
+  border-bottom: 1px solid rgba(145, 170, 180, .08);
+  color: #c4d0d4;
+  font: 9px var(--mono);
+}
+#s-link-table td:first-child, #s-plane-table td:first-child { color: #6fd9bd; }
+#s-link-table td:nth-child(3), #s-link-table td:nth-child(4) { color: #93a6ad; font-size: 8px; }
+#s-plane-table tbody tr:last-child td, #s-link-table tbody tr:last-child td { border-bottom: 0; }
+.plane-table-wrap { margin-top: 10px; }
+
+.frame-list-1col { grid-template-columns: 1fr; }
+.frame-list-1col .frame-row { grid-template-columns: 44px 1fr; }
+
+#s-jacobian { width: 100%; border-collapse: collapse; text-align: right; }
+#s-jacobian th { padding: 5px 3px; border-bottom: 1px solid rgba(145, 170, 180, .15); color: #7f929b; font: 8px var(--mono); }
+#s-jacobian th:first-child { text-align: left; }
+#s-jacobian td { padding: 5px 3px; color: #c4d0d4; font: 9px var(--mono); }
+#s-jacobian td:first-child { color: #7dd8bc; text-align: left; }
+
+/* Floating "Plane 1 / Plane 2" tags inside the 3D scene. */
+.plane-tag {
+  padding: 4px 8px;
+  border: 1px solid rgba(101, 226, 191, .34);
+  border-radius: 6px;
+  color: #d6efe8;
+  background: rgba(6, 18, 24, .84);
+  box-shadow: 0 3px 14px rgba(0, 0, 0, .28);
+  font: 500 8px var(--mono);
+  letter-spacing: .35px;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+}
+.plane-tag b { color: #5ee2bd; margin-right: 3px; }
+.plane-tag span { color: #8ba3a8; margin-left: 5px; }
+
+/* Three camera buttons in the switch. */
+.view-switch button { white-space: nowrap; }

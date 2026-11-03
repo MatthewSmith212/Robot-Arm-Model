@@ -1,11 +1,11 @@
 import { createSixAxisView } from './six-axis-view.js';
-import { createPlanarView } from './planar-view.js';
+import { createSpatialView } from './spatial-view.js';
 import './style.css';
 
 const tabs = Array.from(document.querySelectorAll('[data-tab]'));
 const panels = {
   six: document.querySelector('#panel-six'),
-  planar: document.querySelector('#panel-planar'),
+  spatial: document.querySelector('#panel-spatial'),
 };
 const activeModel = document.querySelector('#active-model');
 
@@ -13,7 +13,7 @@ let activeTab = 'six';
 
 const views = {
   six: createSixAxisView(panels.six),
-  planar: createPlanarView(panels.planar),
+  spatial: createSpatialView(panels.spatial),
 };
 
 function selectTab(name, { focus = false } = {}) {
@@ -53,7 +53,7 @@ tabs.forEach((tab) => {
 });
 
 // Keep the address hash in step so a tab can be linked or bookmarked.
-const initialTab = window.location.hash === '#planar' ? 'planar' : 'six';
+const initialTab = window.location.hash === '#spatial' ? 'spatial' : 'six';
 if (initialTab !== activeTab) selectTab(initialTab);
 tabs.forEach((tab) => {
   tab.addEventListener('click', () => {
