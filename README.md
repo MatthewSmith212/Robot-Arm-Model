@@ -17,7 +17,23 @@ npm run dev
 
 Open the local Vite URL printed in the terminal and pick a tab. A tab can be linked
 directly with `#six` or `#planar`. For a static production bundle, run `npm run build`;
-`npm run preview` serves that bundle. Tests: `npm test`.
+`npm run preview` serves that bundle.
+
+If the browser cannot create a WebGL context (hardware acceleration off, a blocklisted
+GPU, or software rendering disabled), each 3D viewport shows a short "3D view unavailable"
+notice instead of a blank panel, and the tab can still be switched safely.
+
+### Tests
+
+`npm test` runs:
+
+- `kinematics.test.js` — six-axis DH transforms and ZYX roll–pitch–yaw.
+- `planar-kinematics.test.js` — planar forward kinematics, Jacobian against finite
+  differences, inverse kinematics round-trips, workspace clamping, angle wrapping.
+- `markup.test.js` — tab wiring, unique element ids, and every DOM selector each view uses.
+- `dom-smoke.test.js` — boots the real page in jsdom with a stubbed WebGL context,
+  mounts both views, switches tabs, solves a goal pose, drags on the floor, and fails on
+  any runtime error.
 
 ## Tab 1 · Six-axis articulated arm
 

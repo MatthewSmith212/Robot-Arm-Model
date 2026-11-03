@@ -10,6 +10,7 @@ import {
   solvePlanarInverse,
   wrapDegrees,
 } from './planar-kinematics.js';
+import { SHADOW_MAP_TYPE, createRenderer, showRendererFallback } from './webgl.js';
 
 const DEG = Math.PI / 180;
 const FLOOR_SPAN = 3.4;        // metres of floor drawn by the grid texture
@@ -44,17 +45,21 @@ export function createPlanarView(root) {
   /* ------------------------------------------------------------------ *
    * Renderer, camera, views
    * ------------------------------------------------------------------ */
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.08;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.domElement.setAttribute('role', 'img');
-  renderer.domElement.setAttribute('aria-label', 'Top-down 3D model of a three degree of freedom planar robotic arm mounted on a floor');
-  renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;outline:none;touch-action:none;cursor:crosshair;';
-  viewport.prepend(renderer.domElement);
+  const renderer = createRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+  if (!renderer) showRendererFallback(viewport);
+  if (renderer) {
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.08;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = SHADOW_MAP_TYPE;
+    renderer.domElement.setAttribute('role', 'img');
+    renderer.domElement.setAttribute('aria-label', 'Top-down 3D model of a three degree of freedom planar robotic arm mounted on a floor');
+    renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;outline:none;touch-action:none;cursor:crosshair;';
+    viewport.prepend(renderer.domElement);
+  }
+  const canvas = renderer?.domElement;
 
   const labelRenderer = new CSS2DRenderer();
   labelRenderer.domElement.classList.add('labels-layer');
@@ -161,7 +166,7 @@ export function createPlanarView(root) {
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    texture.anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 1;
     return texture;
   }
 
@@ -396,6 +401,7 @@ export function createPlanarView(root) {
   tipLabelElement.className = 'joint-label tip-label';
   tipLabelElement.innerHTML = '<b>TCP</b> &nbsp; φ 0°';
   const tipLabel = new CSS2DObject(tipLabelElement);
+  tipLabel.position.z = 0.12;
   scene.add(tipLabel);
 
   /* ------------------------------------------------------------------ *
@@ -557,7 +563,7 @@ export function createPlanarView(root) {
     $('#p-mode-note').textContent = mode === 'ik'
       ? 'Drag on the floor to move the goal. The arm solves joint angles for that pose; goals outside the rings clamp to the nearest reachable point.'
       : 'Move a joint slider (or drag on the floor to switch to goal-pose control).';
-    renderer.domElement.style.cursor = mode === 'ik' ? 'crosshair' : 'grab';
+    if (renderer) renderer.domElement.style.cursor = mode === 'ik' ? 'crosshair' : 'grab';
   }
 
   /** Keep a solved joint value on the same revolution as `reference`, then honour its limit. */
@@ -627,7 +633,7 @@ export function createPlanarView(root) {
 
     tipTriad.position.set(tip.x, tip.y, 0.02);
     tipTriad.rotation.z = orientationDeg * DEG;
-    tipLabel.object.position.set(tip.x, tip.y, 0.12);
+    tipLabel.position.set(tip.x, tip.y, 0.12);
     tipLabelElement.innerHTML = `<b>TCP</b> &nbsp; φ ${orientationDeg.toFixed(0)}°`;
 
     targetMarker.position.x = target.x;
@@ -746,7 +752,7 @@ export function createPlanarView(root) {
   let lastPan = { x: 0, y: 0 };
 
   function pointerToFloor(event) {
-    const rect = renderer.domElement.getBoundingClientRect();
+    const rect = canvas.getBoundingClientRect();
     pointerNdc.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
@@ -757,12 +763,12 @@ export function createPlanarView(root) {
     return hit;
   }
 
-  renderer.domElement.addEventListener('pointerdown', (event) => {
-    renderer.domElement.setPointerCapture(event.pointerId);
+  canvas?.addEventListener('pointerdown', (event) => {
+    canvas.setPointerCapture(event.pointerId);
     if (event.button === 1 || event.button === 2 || event.shiftKey) {
       dragMode = 'pan';
       lastPan = { x: event.clientX, y: event.clientY };
-      renderer.domElement.style.cursor = 'grabbing';
+      canvas.style.cursor = 'grabbing';
       return;
     }
     const hit = pointerToFloor(event);
@@ -776,10 +782,10 @@ export function createPlanarView(root) {
     refresh();
   });
 
-  renderer.domElement.addEventListener('pointermove', (event) => {
+  canvas?.addEventListener('pointermove', (event) => {
     if (!dragMode) return;
     if (dragMode === 'pan') {
-      const scale = FRUSTUM_HEIGHT / camera.zoom / Math.max(1, renderer.domElement.clientHeight);
+      const scale = FRUSTUM_HEIGHT / camera.zoom / Math.max(1, canvas.clientHeight);
       pan.x -= (event.clientX - lastPan.x) * scale;
       pan.y += (event.clientY - lastPan.y) * scale;
       lastPan = { x: event.clientX, y: event.clientY };
@@ -794,14 +800,14 @@ export function createPlanarView(root) {
 
   function endDrag() {
     dragMode = null;
-    renderer.domElement.style.cursor = mode === 'ik' ? 'crosshair' : 'grab';
+    if (renderer) renderer.domElement.style.cursor = mode === 'ik' ? 'crosshair' : 'grab';
   }
-  renderer.domElement.addEventListener('pointerup', endDrag);
-  renderer.domElement.addEventListener('pointercancel', endDrag);
-  renderer.domElement.addEventListener('contextmenu', (event) => event.preventDefault());
+  canvas?.addEventListener('pointerup', endDrag);
+  canvas?.addEventListener('pointercancel', endDrag);
+  canvas?.addEventListener('contextmenu', (event) => event.preventDefault());
 
   let zoom = 1;
-  renderer.domElement.addEventListener('wheel', (event) => {
+  canvas?.addEventListener('wheel', (event) => {
     event.preventDefault();
     zoom = clamp(zoom * Math.exp(-event.deltaY * 0.0012), 0.65, 3.4);
     camGoal.zoom = zoom;
@@ -899,7 +905,7 @@ export function createPlanarView(root) {
     camera.top = halfHeight;
     camera.bottom = -halfHeight;
     camera.updateProjectionMatrix();
-    renderer.setSize(width, height, false);
+    renderer?.setSize(width, height, false);
     labelRenderer.setSize(width, height);
   }
 
@@ -962,6 +968,7 @@ export function createPlanarView(root) {
 
   let previousTime = performance.now();
   function tick(time) {
+    if (!renderer) return;
     const delta = Math.min(0.05, (time - previousTime) / 1000);
     previousTime = time;
     if (animationEnabled && time - lastAnimationUpdate > 30) stepDemo(time);

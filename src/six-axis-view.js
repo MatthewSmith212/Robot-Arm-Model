@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import { DH, matrixToRPYDegrees, solveForwardKinematics } from './kinematics.js';
+import { SHADOW_MAP_TYPE, createRenderer, showRendererFallback } from './webgl.js';
 
 /**
  * Mount the six-axis arm viewer inside `root` and return its frame hooks.
@@ -23,6 +24,9 @@ const BASE_HEIGHT = 0.16;
 const UP = new THREE.Vector3(0, 1, 0);
 const WORLD_UP = new THREE.Vector3(0, 0, 1);
 const viewport = $('#six-viewport');
+const renderer = createRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+if (!renderer) showRendererFallback(viewport);
+
 const sliderHost = $('#sliders');
 const dhBody = $('#dh-table tbody');
 const matrixBody = $('#transform-matrix tbody');
@@ -41,31 +45,34 @@ const camera = new THREE.PerspectiveCamera(38, 1, 0.015, 40);
 camera.up.copy(WORLD_UP);
 camera.position.set(1.65, -2.45, 1.62);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.domElement.setAttribute('aria-label', '3D model of a six degree of freedom servo-driven robotic arm');
-renderer.domElement.setAttribute('role', 'img');
-renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;outline:none;';
-viewport.prepend(renderer.domElement);
+renderer?.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+if (renderer) {
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.15;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = SHADOW_MAP_TYPE;
+  renderer.domElement.setAttribute('aria-label', '3D model of a six degree of freedom servo-driven robotic arm');
+  renderer.domElement.setAttribute('role', 'img');
+  renderer.domElement.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;outline:none;';
+  viewport.prepend(renderer.domElement);
+}
 
 const labelRenderer = new CSS2DRenderer();
 labelRenderer.domElement.classList.add('labels-layer');
 labelRenderer.domElement.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2;';
 viewport.appendChild(labelRenderer.domElement);
 
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.075;
-controls.target.set(0.22, 0, 0.61);
-controls.minDistance = 1.15;
-controls.maxDistance = 5.5;
-controls.maxPolarAngle = Math.PI * 0.485;
-controls.update();
+const controls = renderer ? new OrbitControls(camera, renderer.domElement) : null;
+if (controls) {
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.075;
+  controls.target.set(0.22, 0, 0.61);
+  controls.minDistance = 1.15;
+  controls.maxDistance = 5.5;
+  controls.maxPolarAngle = Math.PI * 0.485;
+  controls.update();
+}
 
 const ambient = new THREE.HemisphereLight(0xd9f1ef, 0x16202a, 1.75);
 scene.add(ambient);
@@ -462,7 +469,7 @@ function resize() {
   const height = Math.max(1, viewport.clientHeight);
   camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(width, height, false);
+  renderer?.setSize(width, height, false);
   labelRenderer.setSize(width, height);
 }
 
@@ -474,6 +481,7 @@ updateModel();
 
 /** Advance the demo motion (if enabled) and draw one frame. */
 function tick(time) {
+  if (!renderer) return;
   if (animationEnabled && time - lastAnimationUpdate > 28) {
     const t = (time - animationStart) / 1000;
     const amplitudes = [55, 22, 36, 82, 35, 110];
@@ -488,7 +496,7 @@ function tick(time) {
     lastAnimationUpdate = time;
   }
 
-  controls.update();
+  controls?.update();
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
 }
