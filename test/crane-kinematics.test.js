@@ -4,6 +4,14 @@ import {
   ARM,
   BENCH,
   JOINTS,
+  LOWER_PLATFORM,
+  MOUNT_PLATFORM,
+  PLATFORMS,
+  onAPlatform,
+  platformAtHeight,
+  platformByKey,
+  platformGoalPoint,
+  platformUnder,
   REACH,
   SHOULDER_Z,
   WORK_BAND,
@@ -15,6 +23,7 @@ import {
   solveForward,
   solveInverse,
   solveOnBench,
+  solveOnPlatform,
   withinLimits,
   wrapDegrees,
 } from '../src/crane-kinematics.js';
@@ -193,6 +202,90 @@ test('joint clamping and bench helpers behave', () => {
   assert.equal(overBench(BENCH.center.x, BENCH.center.y), true);
   assert.equal(overBench(10, 10), false);
   near(wrapDegrees(190), -170);
+});
+
+test('there are two platforms: the mount under the arm and a lower one beside it', () => {
+  assert.equal(PLATFORMS.length, 2);
+  assert.equal(MOUNT_PLATFORM.id, 'A');
+  assert.equal(LOWER_PLATFORM.id, 'B');
+  assert.equal(MOUNT_PLATFORM.height, BENCH.height, 'the mount platform is the z = 0 reference');
+  assert.ok(LOWER_PLATFORM.height < MOUNT_PLATFORM.height, 'B sits lower than A');
+  assert.ok(LOWER_PLATFORM.center.x - LOWER_PLATFORM.width / 2 > MOUNT_PLATFORM.width / 2,
+    'B stands clear of A, not underneath it');
+  assert.equal(platformByKey('lower'), LOWER_PLATFORM);
+  assert.equal(platformByKey('ceiling'), undefined);
+});
+
+test('both platforms are reachable across their usable area', () => {
+  for (const platform of PLATFORMS) {
+    const band = reachOnBench(platform.height);
+    assert.equal(band.reachable, true, `platform ${platform.id} should be reachable`);
+    const outer = Math.min(WORK_BAND.outer, band.outer);
+    assert.ok(outer > WORK_BAND.inner, `platform ${platform.id} needs a usable band`);
+
+    // Sample the part of each platform inside its band: every point must solve
+    // exactly, with the tool resting on that platform's surface.
+    let checked = 0;
+    for (let i = 1; i < 5; i += 1) {
+      for (let j = 1; j < 5; j += 1) {
+        const x = platform.center.x - platform.width / 2 + (i / 5) * platform.width;
+        const y = platform.center.y - platform.depth / 2 + (j / 5) * platform.depth;
+        const radius = Math.hypot(x, y);
+        if (radius < WORK_BAND.inner || radius > outer) continue;
+        const solution = solveOnPlatform(platform.key, x, y);
+        assert.equal(solution.ok, true, `A point on platform ${platform.id} should solve`);
+        assert.equal(solution.clamped, false, `(${x.toFixed(2)}, ${y.toFixed(2)}) on ${platform.id} is asked for exactly`);
+        near(solution.tip.z, platform.height, 1e-9);
+        assert.equal(platformAtHeight(solution.tip.z).key, platform.key);
+        checked += 1;
+      }
+    }
+    assert.ok(checked >= 4, `platform ${platform.id} should have sampled points inside its band`);
+  }
+});
+
+test('the tool only has to touch a surface, so no mid-air pose is needed', () => {
+  for (const platform of PLATFORMS) {
+    const point = platformGoalPoint(platform);
+    const solution = solveOnPlatform(platform.key, point.x, point.y);
+    assert.equal(solution.ok, true);
+    assert.equal(solution.clamped, false);
+    assert.ok(onAPlatform(solution.tip.z), 'the solved tool point is on a platform');
+    assert.equal(platformUnder(solution.tip.x, solution.tip.y)?.key, platform.key);
+  }
+  assert.equal(onAPlatform(MOUNT_PLATFORM.height), true);
+  assert.equal(onAPlatform(LOWER_PLATFORM.height), true);
+  assert.equal(onAPlatform(0.6), false, 'mid-air is not a platform');
+});
+
+test('reaching down to platform B brings the whole arm lower than staying on A', () => {
+  const onA = solveOnPlatform('mount', 0.2, 0.05);
+  const onB = solveOnPlatform('lower', LOWER_PLATFORM.center.x, 0.05);
+  assert.ok(onB.tip.z < onA.tip.z, 'B is the lower surface');
+  assert.ok(onB.elbowZ < onA.elbowZ, 'the elbow has to come down to reach across to B');
+  // On both, the forearm points down at the surface and the elbow stays above it:
+  // it is a crane, not a digging arm.
+  for (const solution of [onA, onB]) {
+    assert.ok(solution.forearmElevationDeg < 0, 'the tool points down at the surface');
+    assert.ok(solution.elbowZ > MOUNT_PLATFORM.height, 'the elbow stays above both platforms');
+  }
+});
+
+test('platform helpers locate surfaces and their footprints', () => {
+  assert.equal(platformUnder(MOUNT_PLATFORM.center.x, MOUNT_PLATFORM.center.y).key, 'mount');
+  assert.equal(platformUnder(LOWER_PLATFORM.center.x, LOWER_PLATFORM.center.y).key, 'lower');
+  assert.equal(platformUnder(-0.30, 0), null, 'the space beside A belongs to neither');
+  assert.equal(platformUnder(LOWER_PLATFORM.center.x, LOWER_PLATFORM.center.y + 0.4), null, 'past the far edge of B');
+  assert.equal(platformAtHeight(MOUNT_PLATFORM.height).key, 'mount');
+  assert.equal(platformAtHeight(0.5), null);
+  assert.throws(() => solveOnPlatform('ceiling', 0, 0), /Unknown platform/);
+
+  // Platform A straddles the yaw axis, so its exact centre is inside the mast
+  // and must be pushed clear; platform B's centre is directly usable.
+  const aCentre = platformGoalPoint(MOUNT_PLATFORM);
+  assert.ok(Math.hypot(aCentre.x, aCentre.y) >= WORK_BAND.inner);
+  assert.equal(platformUnder(aCentre.x, aCentre.y)?.key, 'mount');
+  assert.deepEqual(platformGoalPoint(LOWER_PLATFORM), { x: LOWER_PLATFORM.center.x, y: LOWER_PLATFORM.center.y });
 });
 
 test('invalid requests are rejected', () => {

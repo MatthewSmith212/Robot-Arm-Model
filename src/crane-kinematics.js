@@ -25,19 +25,57 @@
  * want — a pen, a probe or a suction cup that comes straight down onto the
  * surface — and it is the reason a real pick-and-place arm adds two wrist axes.
  *
- * Frame: right-handed, Z up, origin on the bench top at the centre of the yaw
- * axis. All lengths in metres, all angles in degrees.
+ * There are two working surfaces. The arm is bolted to the upper one and the
+ * task is to touch points on either — the near, higher platform it stands on
+ * (platform A) and the further, lower platform beside it (platform B). It is a
+ * point-to-point task: nothing has to be controlled off the platforms, and the
+ * tool is never asked to work in mid-air.
+ *
+ * Frame: right-handed, Z up, origin on platform A's top surface at the centre of
+ * the yaw axis. All lengths in metres, all angles in degrees.
  */
 
-/** The workbench the arm is bolted to. */
-export const BENCH = Object.freeze({
-  /** Height of the bench top above the floor (a normal desk). */
+/**
+ * Platform A — the mount. The arm is bolted to it and it carries the yaw axis.
+ * Its top surface is the z = 0 reference for the whole model.
+ */
+export const MOUNT_PLATFORM = Object.freeze({
+  key: 'mount',
+  id: 'A',
+  name: 'Platform A · mount',
+  label: 'MOUNT PLATFORM',
   height: 0.74,
-  width: 1.6,
-  depth: 1.2,
-  /** Bench centre on the floor; the yaw axis sits at the origin. */
-  center: Object.freeze({ x: 0.25, y: 0 }),
+  width: 0.50,
+  depth: 0.40,
+  /** Centre on the floor plane. The yaw axis sits at the world origin. */
+  center: Object.freeze({ x: 0, y: 0 }),
 });
+
+/**
+ * Platform B — the lower one the arm reaches across to. It stands on its own
+ * legs and does not touch platform A.
+ */
+export const LOWER_PLATFORM = Object.freeze({
+  key: 'lower',
+  id: 'B',
+  name: 'Platform B · lower',
+  label: 'LOWER PLATFORM',
+  height: 0.45,
+  width: 0.68,
+  depth: 0.52,
+  center: Object.freeze({ x: 0.64, y: 0 }),
+});
+
+/** Both working surfaces, in the order the controls offer them. */
+export const PLATFORMS = Object.freeze([MOUNT_PLATFORM, LOWER_PLATFORM]);
+
+/** Back-compat alias: the mount platform is still "the bench". */
+export const BENCH = MOUNT_PLATFORM;
+
+/** The platform with this key, or undefined. */
+export function platformByKey(key) {
+  return PLATFORMS.find((platform) => platform.key === key);
+}
 
 /** Link lengths and the mast that lifts the shoulder hinge clear of the bench. */
 export const ARM = Object.freeze({
@@ -71,7 +109,7 @@ export const REACH = Object.freeze({
 });
 
 /**
- * Practical working band on the bench, measured from the yaw axis.
+ * Practical working band, measured from the yaw axis, applied on both platforms.
  *
  * The kinematics can fold the tool closer than this, but the mast, the turret
  * and the gripper body all live inside ~0.15 m of the axis, so a real build
@@ -177,14 +215,14 @@ export function solveForward(angles) {
     tip,
     /** Unit horizontal direction the arm is pointing in. */
     heading: { x: ux, y: uy },
-    /** Elbow height above the bench top (negative = below the bench). */
+    /** Elbow height above platform A's surface (negative = below it). */
     elbowAboveBench: elbowPoint.z - BENCH.height,
     elbowZ: elbowPoint.z,
     /** Forearm elevation in degrees; negative = pointing down at the bench. */
     forearmElevationDeg: wrapDegrees(pitch - elbow),
     /**
-     * Angular position of the tool around the bench, and how high it is above
-     * the bench top (0 = resting on it).
+     * Angular position of the tool about the yaw axis, and how far it is above
+     * platform A's surface (0 = level with the platform the arm stands on).
      */
     yawDeg: wrapDegrees(yaw),
     radial,
@@ -229,12 +267,12 @@ export function jacobian(angles) {
 }
 
 /**
- * Radial working band on the bench top: how close and how far the tool can get
- * while still touching the surface inside the joint travel.
+ * Radial working band on a horizontal surface: how close and how far the tool
+ * can get while still touching that surface inside the joint travel.
  *
  * Returns null for a height the arm cannot touch at all.
  */
-export function reachOnBench(z = BENCH.height) {
+export function reachOnBench(z = MOUNT_PLATFORM.height) {
   const drop = Math.abs(z - SHOULDER_Z);
   const outerSquared = REACH.max ** 2 - drop ** 2;
   if (outerSquared <= 0) {
@@ -306,7 +344,7 @@ export function nearestFeasible(radial, height) {
  * travel is answered with the nearest pose the arm can actually hold.
  */
 export function solveInverse(target, options = {}) {
-  const { clamp: clampToWorkspace = false, height = BENCH.height } = options;
+  const { clamp: clampToWorkspace = false, height = MOUNT_PLATFORM.height } = options;
   const { x, y } = target;
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     throw new TypeError('Inverse kinematics requires finite x and y values.');
@@ -409,18 +447,65 @@ export function solveInverse(target, options = {}) {
   };
 }
 
-/** Solve for a point on the bench top. */
+/** Solve for a point on a platform, defaulting to the mount platform. */
+export function solveOnPlatform(key, x, y, options = {}) {
+  const platform = typeof key === 'object' && key !== null ? key : platformByKey(key);
+  if (!platform) throw new TypeError(`Unknown platform "${key}".`);
+  return solveInverse({ x, y, z: platform.height }, options);
+}
+
+/** Back-compat: the mount platform is still "the bench". */
 export function solveOnBench(x, y, options = {}) {
-  return solveInverse({ x, y, z: BENCH.height }, options);
+  return solveOnPlatform('mount', x, y, options);
 }
 
-/** True when the tool point is resting on (or within `tolerance` of) the bench. */
+/** The platform whose top surface the tool is resting on, or null. */
+export function platformAtHeight(z, tolerance = 0.004) {
+  return PLATFORMS.find((platform) => Math.abs(z - platform.height) <= tolerance) ?? null;
+}
+
+/** True when the tool point is resting on any platform (or within `tolerance`). */
+export function onAPlatform(z, tolerance = 0.004) {
+  return platformAtHeight(z, tolerance) !== null;
+}
+
+/** Back-compat: true when the tool is on platform A. */
 export function onBench(z, tolerance = 0.004) {
-  return Math.abs(z - BENCH.height) <= tolerance;
+  return Math.abs(z - MOUNT_PLATFORM.height) <= tolerance;
 }
 
-/** Whether a point lies over the bench top. */
+/** Whether (x, y) lies over a platform's top surface. */
+export function overPlatform(platform, x, y, margin = 0) {
+  if (!platform) return false;
+  return Math.abs(x - platform.center.x) <= platform.width / 2 + margin
+    && Math.abs(y - platform.center.y) <= platform.depth / 2 + margin;
+}
+
+/** The platform whose top surface (x, y) lies over, or null. */
+export function platformUnder(x, y, margin = 0) {
+  return PLATFORMS.find((platform) => overPlatform(platform, x, y, margin)) ?? null;
+}
+
+/** Back-compat: whether (x, y) lies over platform A. */
 export function overBench(x, y, margin = 0) {
-  return Math.abs(x - BENCH.center.x) <= BENCH.width / 2 + margin
-    && Math.abs(y - BENCH.center.y) <= BENCH.depth / 2 + margin;
+  return overPlatform(MOUNT_PLATFORM, x, y, margin);
+}
+
+/**
+ * A sensible starting goal on a platform: its centre, pushed clear of the mast
+ * if the platform straddles the yaw axis (platform A does — the arm is bolted
+ * through its middle, so the exact centre is unreachable).
+ */
+export function platformGoalPoint(platform) {
+  const radius = Math.hypot(platform.center.x, platform.center.y);
+  if (radius >= WORK_BAND.inner + 0.08) {
+    return { x: platform.center.x, y: platform.center.y };
+  }
+  // Aim along the platform's own bearing from the axis, far enough out to clear
+  // the mast but still inside the platform's near half.
+  const bearing = radius > 1e-6 ? Math.atan2(platform.center.y, platform.center.x) : 0;
+  const edge = Math.min(platform.width, platform.depth) / 2;
+  const want = Math.min(WORK_BAND.inner + 0.08, edge - 0.04);
+  const reach = Math.max(want, Math.min(WORK_BAND.inner + 0.02, edge - 0.02));
+  return { x: Math.cos(bearing) * reach, y: Math.sin(bearing) * reach };
 }

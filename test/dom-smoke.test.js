@@ -154,9 +154,14 @@ test('the app boots with both views mounted and no runtime errors', async (t) =>
   assert.equal(document.querySelectorAll('#dh-table tbody tr').length, 6, 'the DH table is still built');
 
   // The home pose is the sketch's A-frame: elbow up, tool back down on the bench.
-  assert.equal($('#s-bench-state').textContent, 'ON THE BENCH');
+  assert.equal($('#s-bench-state').textContent, 'ON PLATFORM A');
   assert.ok(Number($('#s-elbow-height').textContent.replace(/[^0-9.]/g, '')) > 0.2);
   assert.equal($('#s-pos-z').textContent, '0.740');
+
+  // Both platforms are reachable, and the readouts said so on boot.
+  assert.equal($('#s-reach-mount').textContent, 'REACHABLE');
+  assert.equal($('#s-reach-lower').textContent, 'REACHABLE');
+  assert.equal($('#s-height-lower').textContent, '0.45 m');
 
   // Switching tabs must not throw, even though the six-axis view is hidden.
   $('#tab-spatial').click();
@@ -176,7 +181,7 @@ test('the app boots with both views mounted and no runtime errors', async (t) =>
   assert.equal($('#s-pos-x').textContent, '0.450');
   assert.equal($('#s-pos-y').textContent, '0.150');
   assert.equal($('#s-pos-z').textContent, '0.740');
-  assert.equal($('#s-bench-state').textContent, 'ON THE BENCH');
+  assert.equal($('#s-bench-state').textContent, 'ON PLATFORM A');
 
   // A point off the end of the arm is clamped to the nearest pose, not thrown.
   goalX.value = '4';
@@ -185,7 +190,8 @@ test('the app boots with both views mounted and no runtime errors', async (t) =>
   assert.equal($('#s-reach-status').textContent, 'NEAREST POSE');
   assert.ok(Math.hypot(Number($('#s-pos-x').textContent), Number($('#s-pos-y').textContent)) < 0.9);
 
-  // Clicking the bench moves the goal; dragging must not.
+  // Clicking a platform moves the goal; dragging must not.
+  $('[data-spatial-platform="mount"]').click();
   goalX.value = '0.4';
   goalX.dispatchEvent(new window.Event('change', { bubbles: true }));
   goalY.value = '0';
@@ -231,6 +237,7 @@ test('the app boots with both views mounted and no runtime errors', async (t) =>
   }
   assert.equal(scene.elbowGroup.parent, scene.pitchGroup, 'the elbow hinge hangs off the shoulder');
   assert.equal(scene.pitchGroup.parent, scene.yawGroup, 'the shoulder hinge sits on the yaw turret');
+  assert.ok(scene.platformGroups.mount && scene.platformGroups.lower, 'both platforms are in the scene');
   // Home pose: tool on the bench top, elbow a good hand's width above it.
   assert.ok(Math.abs(observed.z - BENCH.height) < 1e-6, 'the home tool point rests on the bench');
   const elbowWorld = new Vector3().setFromMatrixPosition(scene.elbowGroup.matrixWorld);
