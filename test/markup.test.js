@@ -31,7 +31,7 @@ test('element ids are unique so each tab can scope its own queries', () => {
 test('the second tab models the bench crane from the sketch', () => {
   const panel = html.slice(html.indexOf('id="panel-spatial"'), html.indexOf('</main>'));
   assert.match(panel, /3<\/span> REVOLUTE DOF/);
-  assert.match(panel, /BENCH FRAME/);
+  assert.match(panel, /TWO PLATFORMS/);
   assert.match(panel, /yaw/i);
   assert.match(panel, /shoulder/i);
   assert.match(panel, /elbow/i);
@@ -44,8 +44,18 @@ test('the second tab models the bench crane from the sketch', () => {
   assert.match(panel, /id="s-goal-y"/);
   assert.match(panel, /id="s-bench-state"/);
   assert.match(panel, /id="s-radial"/);
-  assert.match(panel, /id="s-band-outer"/);
-  // The old two-plane model is gone for good.
+  assert.match(panel, /id="s-band-lower"/);
+  assert.match(panel, /Platform A · mount/);
+  // Both working surfaces are in the panel: the mount and the lower platform.
+  assert.match(panel, /data-spatial-platform="mount"/);
+  assert.match(panel, /data-spatial-platform="lower"/);
+  assert.match(panel, /id="s-height-mount"/);
+  assert.match(panel, /id="s-height-lower"/);
+  assert.match(panel, /id="s-band-mount"/);
+  assert.match(panel, /id="s-band-lower"/);
+  assert.match(panel, /id="s-reach-lower"/);
+  assert.match(panel, /id="s-goal-platform"/);
+  // The abandoned two-plane wording is gone for good.
   assert.doesNotMatch(panel, /data-spatial-plane/);
   assert.doesNotMatch(panel, /working planes/i);
 });

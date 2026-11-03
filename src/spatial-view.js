@@ -3,14 +3,17 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CSS2DObject, CSS2DRenderer } from 'three/addons/renderers/CSS2DRenderer.js';
 import {
   ARM,
-  BENCH,
   JOINTS,
+  LOWER_PLATFORM,
+  MOUNT_PLATFORM,
+  PLATFORMS,
   REACH,
   SHOULDER_Z,
   WORK_BAND,
   jacobian,
-  onBench,
-  overBench,
+  platformAtHeight,
+  platformGoalPoint,
+  platformUnder,
   reachOnBench,
   solveForward,
   solveInverse,
@@ -62,10 +65,11 @@ export function createCraneView(root) {
   const camera = new THREE.PerspectiveCamera(42, 1, 0.02, 40);
   camera.up.copy(UP);
 
-  const benchCenter = new THREE.Vector3(BENCH.center.x, BENCH.center.y, BENCH.height);
+  // Frame both platforms, not just the one the arm stands on.
+  const sceneCenter = new THREE.Vector3(0.40, 0, 0.62);
   const views = {
-    bench: { eye: new THREE.Vector3(1.95, -2.05, 1.85), target: new THREE.Vector3(0.26, 0.0, 0.86), sideDistance: 2.85, sideHeight: 0.62 },
-    plan: { eye: new THREE.Vector3(0.26, -0.42, 3.3), target: new THREE.Vector3(0.26, 0.0, BENCH.height) },
+    bench: { eye: new THREE.Vector3(2.05, -2.3, 2.02), target: new THREE.Vector3(0.40, 0.0, 0.76), sideDistance: 3.05, sideHeight: 0.7 },
+    plan: { eye: new THREE.Vector3(0.40, -0.30, 3.3), target: new THREE.Vector3(0.40, 0.0, 0.6) },
   };
   const camState = { eye: views.bench.eye.clone(), target: views.bench.target.clone() };
   const camGoal = { eye: views.bench.eye.clone(), target: views.bench.target.clone() };
@@ -195,53 +199,64 @@ export function createCraneView(root) {
   floor.receiveShadow = true;
   scene.add(floor);
 
-  const benchGroup = new THREE.Group();
-  scene.add(benchGroup);
+  /* ------------------------------------------------------------------ *
+   * Two platforms: A (mount, under the arm) and B (lower, across from it)
+   * ------------------------------------------------------------------ */
+  const platformLayer = new THREE.Group();
+  scene.add(platformLayer);
 
   const topThickness = 0.04;
-  const slab = box(BENCH.width, BENCH.depth, topThickness, materials.benchTop,
-    [BENCH.center.x, BENCH.center.y, BENCH.height - topThickness / 2]);
-  benchGroup.add(slab);
-  const edge = box(BENCH.width + 0.02, BENCH.depth + 0.02, 0.008, materials.benchEdge,
-    [BENCH.center.x, BENCH.center.y, BENCH.height - topThickness + 0.004]);
-  benchGroup.add(edge);
+  const platformGroups = {};
 
-  // Frame and legs, so the bench reads as furniture rather than a slab.
-  const legTop = BENCH.height - topThickness;
-  for (const sx of [-1, 1]) {
-    for (const sy of [-1, 1]) {
-      const leg = box(0.05, 0.05, legTop, materials.bench, [
-        BENCH.center.x + sx * (BENCH.width / 2 - 0.07),
-        BENCH.center.y + sy * (BENCH.depth / 2 - 0.07),
-        legTop / 2,
-      ]);
-      benchGroup.add(leg);
-      benchGroup.add(box(0.12, 0.12, 0.012, materials.benchEdge, [leg.position.x, leg.position.y, 0.006]));
+  /**
+   * A table-like platform: slab, edge, skirt, four legs with feet, and stretcher
+   * rails, so both surfaces read as furniture rather than floating slabs.
+   */
+  function buildPlatform(platform) {
+    const group = new THREE.Group();
+    const { width, depth, height } = platform;
+    const cx = platform.center.x;
+    const cy = platform.center.y;
+
+    group.add(box(width, depth, topThickness, materials.benchTop, [cx, cy, height - topThickness / 2]));
+    group.add(box(width + 0.02, depth + 0.02, 0.008, materials.benchEdge, [cx, cy, height - topThickness + 0.004]));
+    group.add(box(width - 0.04, depth - 0.04, 0.014, materials.dark, [cx, cy, height - topThickness - 0.007]));
+
+    const legTop = height - topThickness;
+    const legInset = Math.min(0.075, width / 4, depth / 4);
+    for (const sx of [-1, 1]) {
+      for (const sy of [-1, 1]) {
+        const legX = cx + sx * (width / 2 - legInset);
+        const legY = cy + sy * (depth / 2 - legInset);
+        group.add(box(0.05, 0.05, legTop, materials.bench, [legX, legY, legTop / 2]));
+        group.add(box(0.12, 0.12, 0.012, materials.benchEdge, [legX, legY, 0.006]));
+      }
     }
-    const railZ = [0.12, legTop - 0.14];
-    for (const z of railZ) {
-      benchGroup.add(box(0.03, BENCH.depth - 0.14, 0.03, materials.bench, [
-        BENCH.center.x + sx * (BENCH.width / 2 - 0.07),
-        BENCH.center.y,
-        z,
-      ]));
+    // Stretcher rails partway down.
+    for (const sz of legTop > 0.35 ? [0.12, legTop - 0.12] : [0.12]) {
+      for (const sy of [-1, 1]) {
+        group.add(box(width - legInset * 2, 0.028, 0.028, materials.bench,
+          [cx, cy + sy * (depth / 2 - legInset), sz]));
+      }
+      for (const sx of [-1, 1]) {
+        group.add(box(0.028, depth - legInset * 2, 0.028, materials.bench,
+          [cx + sx * (width / 2 - legInset), cy, sz]));
+      }
     }
-  }
-  for (const sy of [-1, 1]) {
-    benchGroup.add(box(BENCH.width - 0.14, 0.03, 0.03, materials.bench, [
-      BENCH.center.x,
-      BENCH.center.y + sy * (BENCH.depth / 2 - 0.07),
-      0.12,
-    ]));
+
+    const tag = document.createElement('div');
+    tag.className = 'plane-tag';
+    tag.innerHTML = `<b>${platform.id}</b> ${platform.label} <span>z ${height.toFixed(2)} m</span>`;
+    const label = new CSS2DObject(tag);
+    label.position.set(cx - width / 2 - 0.02, cy + depth / 2 + 0.09, height - 0.02);
+    group.add(label);
+
+    platformLayer.add(group);
+    platformGroups[platform.key] = group;
+    return group;
   }
 
-  // Bench label.
-  const benchTag = document.createElement('div');
-  benchTag.className = 'plane-tag';
-  benchTag.innerHTML = `<b>BENCH</b> WORK SURFACE <span>z ${BENCH.height.toFixed(2)} m</span>`;
-  const benchLabel = new CSS2DObject(benchTag);
-  benchLabel.position.set(BENCH.center.x - BENCH.width / 2 - 0.12, BENCH.center.y + BENCH.depth / 2 + 0.1, BENCH.height - 0.05);
-  benchGroup.add(benchLabel);
+  PLATFORMS.forEach(buildPlatform);
 
   /* ------------------------------------------------------------------ *
    * Workspace overlay: the band of the bench the tool can be driven over
@@ -269,44 +284,59 @@ export function createCraneView(root) {
     );
   }
 
-  const bandFill = bandMesh(WORK_BAND.inner, WORK_BAND.outer);
-  bandFill.position.z = BENCH.height + 0.0015;
-  workspaceLayer.add(bandFill);
-  const bandInner = ringLine(WORK_BAND.inner);
-  const bandOuter = ringLine(WORK_BAND.outer);
-  bandInner.position.z = BENCH.height + 0.002;
-  bandOuter.position.z = BENCH.height + 0.002;
-  workspaceLayer.add(bandInner, bandOuter);
-
   // Radial ticks every 15° make the yaw travel easy to read from above.
-  const tickPoints = [];
-  for (let deg = -150; deg <= 150; deg += 15) {
-    const a = deg * DEG;
-    const long = Math.abs(deg) % 45 === 0;
-    const r0 = WORK_BAND.inner;
-    const r1 = WORK_BAND.inner + (long ? 0.06 : 0.035);
-    tickPoints.push(new THREE.Vector3(Math.cos(a) * r0, Math.sin(a) * r0, 0));
-    tickPoints.push(new THREE.Vector3(Math.cos(a) * r1, Math.sin(a) * r1, 0));
+  function tickSegments() {
+    const points = [];
+    for (let deg = -150; deg <= 150; deg += 15) {
+      const a = deg * DEG;
+      const long = Math.abs(deg) % 45 === 0;
+      const r1 = WORK_BAND.inner + (long ? 0.06 : 0.035);
+      points.push(new THREE.Vector3(Math.cos(a) * WORK_BAND.inner, Math.sin(a) * WORK_BAND.inner, 0));
+      points.push(new THREE.Vector3(Math.cos(a) * r1, Math.sin(a) * r1, 0));
+    }
+    return new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(points),
+      new THREE.LineBasicMaterial({ color: 0x5ee2bd, transparent: true, opacity: 0.32 }),
+    );
   }
-  const ticks = new THREE.LineSegments(
-    new THREE.BufferGeometry().setFromPoints(tickPoints),
-    new THREE.LineBasicMaterial({ color: 0x5ee2bd, transparent: true, opacity: 0.32 }),
-  );
-  ticks.position.z = BENCH.height + 0.002;
-  workspaceLayer.add(ticks);
 
-  const bandTag = document.createElement('div');
-  bandTag.className = 'plane-tag';
-  bandTag.innerHTML = `<b>BAND</b> ${WORK_BAND.inner.toFixed(2)}–${WORK_BAND.outer.toFixed(2)} m`;
-  const bandLabel = new CSS2DObject(bandTag);
-  bandLabel.position.set(0, -(WORK_BAND.outer + 0.09), BENCH.height + 0.01);
-  workspaceLayer.add(bandLabel);
+  /**
+   * The band the tool can be driven over on each platform. The outer edge is
+   * the arm's reach at that height, so platform B's band is smaller than A's.
+   */
+  const bands = {};
+  PLATFORMS.forEach((platform) => {
+    const group = new THREE.Group();
+    const outer = Math.min(WORK_BAND.outer, reachOnBench(platform.height).outer);
+
+    const fill = bandMesh(WORK_BAND.inner, outer);
+    fill.position.z = platform.height + 0.0015;
+    group.add(fill);
+
+    const innerRing = ringLine(WORK_BAND.inner);
+    const outerRing = ringLine(outer, 0.5);
+    innerRing.position.z = platform.height + 0.002;
+    outerRing.position.z = platform.height + 0.002;
+    group.add(innerRing, outerRing);
+
+    if (platform.key === MOUNT_PLATFORM.key) group.add(tickSegments());
+
+    const tag = document.createElement('div');
+    tag.className = 'plane-tag';
+    tag.innerHTML = `<b>BAND ${platform.id}</b> ≤ ${outer.toFixed(2)} m`;
+    const label = new CSS2DObject(tag);
+    label.position.set(0, -(WORK_BAND.inner + 0.05), platform.height + 0.012);
+    group.add(label);
+
+    workspaceLayer.add(group);
+    bands[platform.key] = group;
+  });
 
   /* ------------------------------------------------------------------ *
    * The arm
    * ------------------------------------------------------------------ */
   const armRoot = new THREE.Group();
-  armRoot.position.set(0, 0, BENCH.height);
+  armRoot.position.set(0, 0, MOUNT_PLATFORM.height);
   scene.add(armRoot);
 
   // Base plate bolted to the bench.
@@ -469,14 +499,15 @@ export function createCraneView(root) {
     new THREE.LineBasicMaterial({ color: 0x7ff0cf, transparent: true, opacity: 0.5 }),
   );
   goalMarker.add(goalStem);
-  goalMarker.position.z = BENCH.height + 0.003;
+  goalMarker.position.z = MOUNT_PLATFORM.height + 0.003;
 
   /* ------------------------------------------------------------------ *
    * State
    * ------------------------------------------------------------------ */
   let angles = JOINTS.map(({ home }) => home);
   let mode = 'fk';
-  let goal = { x: 0.45, y: 0.12 };
+  /** The goal always sits on a platform: the task is point-to-point on either. */
+  let goal = { x: 0.18, y: 0, platform: MOUNT_PLATFORM.key };
   let goalClamped = false;
   let goalNote = '';
   let animationEnabled = false;
@@ -540,6 +571,11 @@ export function createCraneView(root) {
     });
   }
 
+  /** The platform the goal is currently on. */
+  function goalPlatform() {
+    return PLATFORMS.find((platform) => platform.key === goal.platform) ?? MOUNT_PLATFORM;
+  }
+
   function syncGoalInputs() {
     $('#s-goal-x').value = goal.x.toFixed(3);
     $('#s-goal-y').value = goal.y.toFixed(3);
@@ -582,7 +618,8 @@ export function createCraneView(root) {
     if (changing && mode === 'ik') {
       // Start from where the tool already is so the arm does not jump.
       const pose = solveForward(angles);
-      goal = { x: pose.tip.x, y: pose.tip.y };
+      const under = platformAtHeight(pose.tip.z) ?? platformUnder(pose.tip.x, pose.tip.y) ?? MOUNT_PLATFORM;
+      goal = { x: pose.tip.x, y: pose.tip.y, platform: under.key };
       goalClamped = false;
       goalNote = '';
       syncGoalInputs();
@@ -597,10 +634,15 @@ export function createCraneView(root) {
       button.setAttribute('aria-pressed', String(selected));
       button.classList.toggle('is-active', selected);
     });
+    root.querySelectorAll('[data-spatial-platform]').forEach((button) => {
+      const selected = button.dataset.spatialPlatform === goal.platform;
+      button.setAttribute('aria-pressed', String(selected));
+      button.classList.toggle('is-active', selected);
+    });
     $('#s-goal-fields').classList.toggle('is-disabled', mode !== 'ik');
     $('#s-mode-note').textContent = mode === 'ik'
-      ? 'Type an X and Y on the bench, or click the bench surface. Yaw aims at the point, then the two hinges fold to reach it.'
-      : 'Move a joint slider, or click the bench to switch to goal control.';
+      ? 'Pick platform A or B, then type an X and Y or click that surface. Yaw aims at the point, then the two hinges fold to reach it.'
+      : 'Move a joint slider, or click either platform to switch to goal control.';
     if (canvas) canvas.style.cursor = mode === 'ik' ? 'crosshair' : 'grab';
   }
 
@@ -614,7 +656,7 @@ export function createCraneView(root) {
   }
 
   function solveGoal() {
-    const solution = solveInverse({ x: goal.x, y: goal.y, z: BENCH.height }, { clamp: true });
+    const solution = solveInverse({ x: goal.x, y: goal.y, z: goalPlatform().height }, { clamp: true });
     if (!solution.ok) {
       goalClamped = true;
       goalNote = solution.reason ?? 'Not reachable';
@@ -648,7 +690,7 @@ export function createCraneView(root) {
     const hingeQuaternion = (deg) => new THREE.Quaternion().setFromAxisAngle(
       new THREE.Vector3(0, 1, 0), -deg * DEG,
     );
-    frameAxes.yaw.position.set(0, 0, BENCH.height + 0.02);
+    frameAxes.yaw.position.set(0, 0, MOUNT_PLATFORM.height + 0.02);
     frameAxes.yaw.quaternion.copy(yawQuaternion);
     frameAxes.shoulder.position.set(pose.shoulder.x, pose.shoulder.y, pose.shoulder.z);
     frameAxes.shoulder.quaternion.copy(yawQuaternion).multiply(hingeQuaternion(pitch));
@@ -658,7 +700,7 @@ export function createCraneView(root) {
     frameAxes.tip.quaternion.copy(yawQuaternion).multiply(hingeQuaternion(pitch - elbow));
 
     const labelPositions = [
-      new THREE.Vector3(0, 0, BENCH.height + 0.11),
+      new THREE.Vector3(0, 0, MOUNT_PLATFORM.height + 0.11),
       new THREE.Vector3(pose.shoulder.x, pose.shoulder.y, pose.shoulder.z + 0.08),
       new THREE.Vector3(pose.elbow.x, pose.elbow.y, pose.elbow.z + 0.075),
     ];
@@ -670,7 +712,7 @@ export function createCraneView(root) {
     tipElement.innerHTML = `<b>TCP</b> &nbsp; z ${fmt(pose.tip.z, 2)}`;
 
     goalMarker.visible = mode === 'ik';
-    goalMarker.position.set(goal.x, goal.y, BENCH.height + 0.003);
+    goalMarker.position.set(goal.x, goal.y, goalPlatform().height + 0.003);
     const goalColor = goalClamped ? 0xff9d67 : 0x7ff0cf;
     goalRing.material.color.setHex(goalColor);
     goalDot.material.color.setHex(goalColor);
@@ -682,11 +724,12 @@ export function createCraneView(root) {
 
   function updateReadouts(pose) {
     const { matrix, determinant, dexterity } = jacobian(angles);
-    const benchState = onBench(pose.tip.z)
-      ? { text: 'ON THE BENCH', cls: 'chip-ok' }
-      : pose.tip.z > BENCH.height
-        ? { text: 'ABOVE THE BENCH', cls: 'chip-neutral' }
-        : { text: 'BELOW THE BENCH', cls: 'chip-warn' };
+    const contact = platformAtHeight(pose.tip.z);
+    const benchState = contact
+      ? { text: `ON PLATFORM ${contact.id}`, cls: 'chip-ok' }
+      : pose.tip.z > MOUNT_PLATFORM.height
+        ? { text: 'IN THE AIR', cls: 'chip-neutral' }
+        : { text: 'BELOW BOTH', cls: 'chip-warn' };
 
     $('#s-pos-x').textContent = fmt(pose.tip.x);
     $('#s-pos-y').textContent = fmt(pose.tip.y);
@@ -720,9 +763,11 @@ export function createCraneView(root) {
       status.textContent = 'JOINT-SPACE CONTROL';
       status.className = 'status-chip chip-neutral';
     }
+    const target = goalPlatform();
     $('#s-goal-note').textContent = mode === 'ik'
-      ? (goalNote || `Goal at ${Math.hypot(goal.x, goal.y).toFixed(2)} m from the yaw axis, bearing ${(Math.atan2(goal.y, goal.x) * 180 / Math.PI).toFixed(0)}°.`)
-      : 'Switch to goal control to drive the tool point to a spot on the bench.';
+      ? (goalNote || `Goal on platform ${target.id} at ${Math.hypot(goal.x, goal.y).toFixed(2)} m from the yaw axis, bearing ${(Math.atan2(goal.y, goal.x) * 180 / Math.PI).toFixed(0)}°.`)
+      : 'Switch to goal control, then pick a platform and drive the tool point to a spot on it.';
+    $('#s-goal-platform').textContent = `${target.name} at ${target.height.toFixed(2)} m`;
 
     for (let row = 0; row < 3; row += 1) {
       for (let column = 0; column < 3; column += 1) {
@@ -732,8 +777,8 @@ export function createCraneView(root) {
 
     const frames = $('#s-frames').children;
     const framePoints = [
-      new THREE.Vector3(0, 0, BENCH.height),
-      new THREE.Vector3(0, 0, BENCH.height + ARM.mast),
+      new THREE.Vector3(0, 0, MOUNT_PLATFORM.height),
+      new THREE.Vector3(0, 0, MOUNT_PLATFORM.height + ARM.mast),
       new THREE.Vector3(pose.elbow.x, pose.elbow.y, pose.elbow.z),
       new THREE.Vector3(pose.tip.x, pose.tip.y, pose.tip.z),
     ];
@@ -741,10 +786,19 @@ export function createCraneView(root) {
       if (frames[index]) frames[index].lastElementChild.textContent = `${fmt(point.x)}, ${fmt(point.y)}, ${fmt(point.z)}`;
     });
 
-    const band = reachOnBench(BENCH.height);
-    $('#s-bench-height').textContent = `${BENCH.height.toFixed(2)} m`;
-    $('#s-band-inner').textContent = `${WORK_BAND.inner.toFixed(2)} m`;
-    $('#s-band-outer').textContent = `${Math.min(WORK_BAND.outer, band.outer).toFixed(2)} m`;
+    // Table of both platforms: height, and the band reachable on each.
+    PLATFORMS.forEach((platform) => {
+      const band = reachOnBench(platform.height);
+      const outer = Math.min(WORK_BAND.outer, band.outer);
+      const usable = band.reachable && outer > WORK_BAND.inner;
+      $(`#s-height-${platform.key}`).textContent = `${platform.height.toFixed(2)} m`;
+      $(`#s-band-${platform.key}`).textContent = usable
+        ? `${WORK_BAND.inner.toFixed(2)} – ${outer.toFixed(2)} m`
+        : 'out of reach';
+      const chip = $(`#s-reach-${platform.key}`);
+      chip.textContent = usable ? 'REACHABLE' : 'OUT OF REACH';
+      chip.className = `status-chip ${usable ? 'chip-ok' : 'chip-warn'}`;
+    });
     $('#s-shoulder-height').textContent = `${SHOULDER_Z.toFixed(2)} m`;
     $('#s-reach-limit').textContent = `${REACH.max.toFixed(2)} m`;
   }
@@ -769,7 +823,7 @@ export function createCraneView(root) {
     goalNote = '';
     if (mode === 'ik') {
       const pose = solveForward(angles);
-      goal = { x: pose.tip.x, y: pose.tip.y };
+      goal = { x: pose.tip.x, y: pose.tip.y, platform: MOUNT_PLATFORM.key };
       solveGoal();
       syncGoalInputs();
     }
@@ -796,7 +850,7 @@ export function createCraneView(root) {
     goalNote = '';
     if (mode === 'ik') {
       const pose = solveForward(angles);
-      goal = { x: pose.tip.x, y: pose.tip.y };
+      goal = { ...goal, x: pose.tip.x, y: pose.tip.y };
       syncGoalInputs();
     }
     syncJointInputs();
@@ -807,9 +861,18 @@ export function createCraneView(root) {
   function stepDemo(time) {
     const t = (time - animationStart) / 1000;
     if (mode !== 'ik') setMode('ik', { silent: true });
-    const bearing = (-55 + 55 * Math.sin(t * 0.42)) * DEG;
-    const radius = 0.52 + 0.22 * Math.sin(t * 0.29 + 0.7);
-    goal = { x: Math.cos(bearing) * radius, y: Math.sin(bearing) * radius };
+    // Alternate between the two platforms, sweeping across the front of the bench.
+    const onMount = Math.sin(t * 0.36) >= 0;
+    const platform = onMount ? MOUNT_PLATFORM : LOWER_PLATFORM;
+    const bearing = (-40 + 40 * Math.sin(t * 0.42)) * DEG;
+    const radius = onMount
+      ? 0.20 + 0.07 * Math.sin(t * 0.29)
+      : 0.52 + 0.16 * Math.sin(t * 0.31 + 0.6);
+    goal = {
+      x: Math.cos(bearing) * radius,
+      y: Math.sin(bearing) * radius,
+      platform: platform.key,
+    };
     goalClamped = false;
     goalNote = '';
     solveGoal();
@@ -832,11 +895,19 @@ export function createCraneView(root) {
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     );
     raycaster.setFromCamera(pointer, camera);
-    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -BENCH.height);
-    const hit = new THREE.Vector3();
-    if (!raycaster.ray.intersectPlane(plane, hit)) return null;
-    if (!overBench(hit.x, hit.y, 0.02)) return null;
-    return hit;
+    // Both platform tops are candidates; take whichever surface the ray meets
+    // closest, so B is never hidden behind A.
+    let best = null;
+    for (const platform of PLATFORMS) {
+      const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -platform.height);
+      const hit = new THREE.Vector3();
+      if (!raycaster.ray.intersectPlane(plane, hit)) continue;
+      // Only count a hit on the platform whose surface the ray actually crossed.
+      if (platformUnder(hit.x, hit.y, 0.02)?.key !== platform.key) continue;
+      const distance = hit.distanceTo(camera.position);
+      if (!best || distance < best.distance) best = { point: hit, platform, distance };
+    }
+    return best;
   }
 
   // A click drops the goal on the bench; a drag orbits. Distinguish by travel.
@@ -854,8 +925,8 @@ export function createCraneView(root) {
     if (!hit) return;
     stopDemo();
     mode = 'ik';
+    goal = { x: hit.point.x, y: hit.point.y, platform: hit.platform.key };
     updateModeUI();
-    goal = { x: hit.x, y: hit.y };
     solveGoal();
     syncGoalInputs();
     refresh();
@@ -877,7 +948,7 @@ export function createCraneView(root) {
   function sideViewGoal() {
     const perpendicular = angles[0] * DEG + Math.PI / 2;
     const distance = views.bench.sideDistance;
-    camGoal.target.copy(benchCenter).add(new THREE.Vector3(0, 0, 0.16));
+    camGoal.target.copy(sceneCenter).add(new THREE.Vector3(0, 0, 0.18));
     camGoal.eye.set(
       camGoal.target.x + Math.cos(perpendicular) * distance,
       camGoal.target.y + Math.sin(perpendicular) * distance,
@@ -915,6 +986,21 @@ export function createCraneView(root) {
     });
   });
 
+  root.querySelectorAll('[data-spatial-platform]').forEach((button) => {
+    button.addEventListener('click', () => {
+      stopDemo();
+      if (mode !== 'ik') setMode('ik', { silent: true });
+      const platform = PLATFORMS.find((entry) => entry.key === button.dataset.spatialPlatform) ?? MOUNT_PLATFORM;
+      // Aim at the middle of the new platform, clear of the mast, so the arm
+      // goes somewhere meaningful instead of jumping to an unreachable corner.
+      goal = { ...platformGoalPoint(platform), platform: platform.key };
+      solveGoal();
+      syncGoalInputs();
+      updateModeUI();
+      refresh();
+    });
+  });
+
   ['x', 'y'].forEach((key) => {
     const input = $(`#s-goal-${key}`);
     input.addEventListener('change', () => {
@@ -935,7 +1021,7 @@ export function createCraneView(root) {
   $('#s-copy-pose').addEventListener('click', () => {
     const pose = solveForward(angles);
     if (mode !== 'ik') setMode('ik', { silent: true });
-    goal = { x: pose.tip.x, y: pose.tip.y };
+    goal = { x: pose.tip.x, y: pose.tip.y, platform: platformAtHeight(pose.tip.z)?.key ?? goal.platform };
     goalClamped = false;
     goalNote = '';
     syncGoalInputs();
@@ -946,7 +1032,9 @@ export function createCraneView(root) {
   $('#s-centre-goal').addEventListener('click', () => {
     stopDemo();
     if (mode !== 'ik') setMode('ik', { silent: true });
-    goal = { x: 0.42, y: 0 };
+    // Middle of the current platform, clear of the mast.
+    const targetPlatform = goalPlatform();
+    goal = { ...platformGoalPoint(targetPlatform), platform: targetPlatform.key };
     solveGoal();
     syncGoalInputs();
     refresh();
@@ -1040,13 +1128,15 @@ export function createCraneView(root) {
      */
     scene: {
       root: scene,
-      benchGroup,
+      platformGroups,
+      bands,
       yawGroup,
       pitchGroup,
       elbowGroup,
       toolGroup,
       get angles() { return [...angles]; },
       get goal() { return { ...goal }; },
+      get goalPlatform() { return goalPlatform(); },
       get mode() { return mode; },
     },
   };

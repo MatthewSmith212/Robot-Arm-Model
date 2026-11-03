@@ -13,7 +13,7 @@
       <div class="brand-copy">
         <p class="eyebrow">MECHANISM STUDY <span>/</span> ROBOT KINEMATICS</p>
         <h1>Two arms. Two ways to reach.</h1>
-        <p class="subtitle">A six-axis articulated arm, and a three-axis bench crane that folds its elbow up and sets its tool back down on the work surface.</p>
+        <p class="subtitle">A six-axis articulated arm, and a three-axis bench crane that folds its elbow up and sets its tool down on either of two platforms.</p>
       </div>
       <div class="header-meta">
         <div class="sim-status"><span class="status-dot"></span>SIMULATION LIVE</div>
@@ -28,7 +28,7 @@
       </button>
       <button class="tab" type="button" role="tab" id="tab-spatial" aria-controls="panel-spatial" aria-selected="false" tabindex="-1" data-tab="spatial" data-model="3R · BENCH CRANE">
         <span class="tab-badge" aria-hidden="true">3R</span>
-        <span class="tab-copy"><strong>Bench crane arm</strong><small>3R · yaw + two hinges · bench top</small></span>
+        <span class="tab-copy"><strong>Bench crane arm</strong><small>3R · yaw + two hinges · two platforms</small></span>
       </button>
     </nav>
 
@@ -160,7 +160,7 @@
         <section class="visual-card" aria-label="Interactive 3D model of a three axis crane arm bolted to a workbench">
           <div class="viewport" id="spatial-viewport">
             <div class="viewport-topline">
-              <div><span class="micro-label">BENCH ARM SIMULATION</span><span class="viewport-divider">/</span><span class="coordinate-tag">BENCH FRAME · METRES</span></div>
+              <div><span class="micro-label">BENCH ARM SIMULATION</span><span class="viewport-divider">/</span><span class="coordinate-tag">TWO PLATFORMS · METRES</span></div>
               <div class="dof-pill"><span>3</span> REVOLUTE DOF</div>
             </div>
 
@@ -171,7 +171,7 @@
             </div>
 
             <div class="viewport-bottomline">
-              <div class="view-hint"><span class="mouse-icon" aria-hidden="true"></span>DRAG TO ORBIT <i>·</i> SCROLL TO ZOOM <i>·</i> CLICK THE BENCH TO SET THE GOAL</div>
+              <div class="view-hint"><span class="mouse-icon" aria-hidden="true"></span>DRAG TO ORBIT <i>·</i> SCROLL TO ZOOM <i>·</i> CLICK EITHER PLATFORM TO SET THE GOAL</div>
               <div class="axis-legend"><span><b class="axis-x"></b>X</span><span><b class="axis-y"></b>Y</span><span><b class="axis-z"></b>Z</span></div>
             </div>
             <div class="viewport-readout" aria-live="polite">
@@ -187,7 +187,7 @@
               <div><p class="section-kicker">01 / INPUT</p><h2>Joints</h2></div>
               <span class="count-chip">3 DOF</span>
             </div>
-            <p class="section-description">One <b>yaw</b> axis bolted upright on the bench, a <b>shoulder</b> hinge on a short mast, and an <b>elbow</b> hinge that folds the forearm back down onto the bench top.</p>
+            <p class="section-description">One <b>yaw</b> axis bolted upright on platform A, a <b>shoulder</b> hinge on a short mast, and an <b>elbow</b> hinge that swings the forearm down onto either platform: A under the arm, or the lower platform B across from it.</p>
             <div class="mode-switch" role="group" aria-label="Control mode">
               <button type="button" data-spatial-mode="fk" class="is-active" aria-pressed="true">Joint angles</button>
               <button type="button" data-spatial-mode="ik" aria-pressed="false">Goal point</button>
@@ -196,11 +196,16 @@
             <div id="s-sliders" class="slider-list"></div>
 
             <div class="target-fields" id="s-goal-fields">
+              <div class="segmented segmented-planes" role="group" aria-label="Goal platform">
+                <span>PLATFORM</span>
+                <button type="button" data-spatial-platform="mount" class="is-active" aria-pressed="true">A · mount</button>
+                <button type="button" data-spatial-platform="lower" aria-pressed="false">B · lower</button>
+              </div>
               <div class="field-row field-row-2">
                 <label>X <small>m</small><input id="s-goal-x" type="number" step="0.01" value="0" /></label>
                 <label>Y <small>m</small><input id="s-goal-y" type="number" step="0.01" value="0" /></label>
               </div>
-              <p class="goal-plane-note">Goal on the bench top at <b id="s-goal-z">0.74 m</b>. The arm solves yaw first, then both hinges.</p>
+              <p class="goal-plane-note">Goal on <b id="s-goal-platform">Platform A · mount at 0.74 m</b>. The arm solves yaw first, then both hinges.</p>
               <div class="button-row button-row-compact">
                 <button id="s-copy-pose" class="button button-ghost" type="button"><span aria-hidden="true">⤓</span> Copy current tool point</button>
                 <button id="s-centre-goal" class="button button-ghost" type="button"><span aria-hidden="true">◎</span> Centre the goal</button>
@@ -254,7 +259,7 @@
               <div><p class="section-kicker">03 / GEOMETRY</p><h2>Bench &amp; links</h2></div>
               <span class="unit-chip">SI UNITS</span>
             </div>
-            <p class="section-description">A short mast, a 0.36 m upper arm and a 0.52 m forearm. The elbow ends up roughly 0.3 m above the bench while the tool comes back down to the surface.</p>
+            <p class="section-description">A short mast, a 0.36 m upper arm and a 0.52 m forearm. The elbow stays up around shoulder height while the tool comes down onto platform A or reaches across to platform B.</p>
             <div class="table-wrap">
               <table id="s-link-table">
                 <thead><tr><th>Lᵢ</th><th>length <small>m</small></th><th>between</th><th>role</th></tr></thead>
@@ -262,13 +267,29 @@
               </table>
             </div>
             <div class="table-wrap plane-table-wrap">
-              <table>
-                <thead><tr><th>bench capacity</th><th>value</th></tr></thead>
+              <table id="s-platform-table">
+                <thead><tr><th>platform</th><th>height</th><th>reach band</th><th>status</th></tr></thead>
                 <tbody>
-                  <tr><td>Bench top</td><td id="s-bench-height">0.74 m</td></tr>
+                  <tr>
+                    <td>A · mount</td>
+                    <td id="s-height-mount">0.74 m</td>
+                    <td id="s-band-mount">0.17 – 0.86 m</td>
+                    <td><b id="s-reach-mount" class="status-chip chip-ok">REACHABLE</b></td>
+                  </tr>
+                  <tr>
+                    <td>B · lower</td>
+                    <td id="s-height-lower">0.45 m</td>
+                    <td id="s-band-lower">0.17 – 0.75 m</td>
+                    <td><b id="s-reach-lower" class="status-chip chip-ok">REACHABLE</b></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="table-wrap plane-table-wrap">
+              <table>
+                <thead><tr><th>arm capacity</th><th>value</th></tr></thead>
+                <tbody>
                   <tr><td>Shoulder hinge height</td><td id="s-shoulder-height">0.91 m</td></tr>
-                  <tr><td>Band, inner radius</td><td id="s-band-inner">0.17 m</td></tr>
-                  <tr><td>Band, outer radius</td><td id="s-band-outer">0.84 m</td></tr>
                   <tr><td>Straight-arm reach</td><td id="s-reach-limit">0.88 m</td></tr>
                 </tbody>
               </table>
@@ -326,7 +347,8 @@
               <div class="glossary-item"><dt>Elbow hinge</dt><dd>The second horizontal hinge. It folds the forearm back down so the tool lands on the bench instead of stretching out into the room.</dd></div>
               <div class="glossary-item"><dt>A-frame pose</dt><dd>The working shape: mast up, upper arm out and up, forearm back and down. Like a crane or an archer's arm.</dd></div>
               <div class="glossary-item"><dt>Forearm elevation</dt><dd>The angle of the forearm from horizontal. Negative values mean it points down, which is what puts the tool on the bench.</dd></div>
-              <div class="glossary-item"><dt>Working band</dt><dd>The ring on the bench the tool can be driven over. The inner edge keeps the tool clear of the mast; the outer edge is how far the arm reaches.</dd></div>
+              <div class="glossary-item"><dt>Two platforms</dt><dd>Platform A is where the arm is bolted; platform B is the lower one across from it. The tool only has to reach points on either surface, not travel precisely through the air between them.</dd></div>
+              <div class="glossary-item"><dt>Working band</dt><dd>The ring on a platform the tool can be driven over. The inner edge keeps the tool clear of the mast; the outer edge is how far the arm reaches at that height — so B's band is smaller than A's.</dd></div>
               <div class="glossary-item"><dt>Degrees of freedom</dt><dd>Independent motions. Here three joints set the tool's X, Y and Z — enough to place a point, not enough to also choose which way the tool faces.</dd></div>
               <div class="glossary-item"><dt>Jacobian determinant</dt><dd>How freely the tool can move in every direction. Near zero means a stretched or folded pose where some directions are impossible.</dd></div>
             </dl>
