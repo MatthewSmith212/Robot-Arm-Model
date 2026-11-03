@@ -153,47 +153,88 @@ test('the app boots with both views mounted and no runtime errors', async (t) =>
   assert.equal(document.querySelectorAll('#s-sliders .joint-control').length, 3, 'the three joints get controls');
   assert.equal(document.querySelectorAll('#dh-table tbody tr').length, 6, 'the DH table is still built');
 
-  // The home pose throws the elbow above the mounting plane and rests the tool
-  // on the lower plane: that is the whole point of this model.
-  assert.equal($('#s-elbow-state').textContent, 'HIGH');
-  assert.equal($('#s-contact-state').textContent, 'PLANE 2');
+  // The home pose is the sketch's A-frame: elbow up, tool back down on the bench.
+  assert.equal($('#s-bench-state').textContent, 'ON THE BENCH');
+  assert.ok(Number($('#s-elbow-height').textContent.replace(/[^0-9.]/g, '')) > 0.2);
+  assert.equal($('#s-pos-z').textContent, '0.740');
 
   // Switching tabs must not throw, even though the six-axis view is hidden.
   $('#tab-spatial').click();
   tick(2);
   assert.equal($('[data-tab].is-active').dataset.tab, 'spatial');
 
-  // Goal control solves joints for a point on the lower plane.
+  // Goal control solves the joints for a point on the bench.
   $('[data-spatial-mode="ik"]').click();
-  $('[data-spatial-plane="lower"]').click();
   const goalX = $('#s-goal-x');
+  const goalY = $('#s-goal-y');
   goalX.value = '0.45';
   goalX.dispatchEvent(new window.Event('change', { bubbles: true }));
-  const goalY = $('#s-goal-y');
   goalY.value = '0.15';
   goalY.dispatchEvent(new window.Event('change', { bubbles: true }));
   tick(2);
   assert.equal($('#s-reach-status').textContent, 'GOAL IN REACH');
-  assert.equal($('#s-pos-z').textContent, '0.450');
-  assert.equal($('#s-contact-state').textContent, 'PLANE 2');
+  assert.equal($('#s-pos-x').textContent, '0.450');
+  assert.equal($('#s-pos-y').textContent, '0.150');
+  assert.equal($('#s-pos-z').textContent, '0.740');
+  assert.equal($('#s-bench-state').textContent, 'ON THE BENCH');
 
-  // A far goal is clamped rather than throwing.
+  // A point off the end of the arm is clamped to the nearest pose, not thrown.
   goalX.value = '4';
   goalX.dispatchEvent(new window.Event('change', { bubbles: true }));
   tick(2);
-  assert.equal($('#s-reach-status').textContent, 'CLAMPED TO WORKSPACE');
+  assert.equal($('#s-reach-status').textContent, 'NEAREST POSE');
+  assert.ok(Math.hypot(Number($('#s-pos-x').textContent), Number($('#s-pos-y').textContent)) < 0.9);
 
-  // Clicking a bench moves the goal; dragging must not.
+  // Clicking the bench moves the goal; dragging must not.
+  goalX.value = '0.4';
+  goalX.dispatchEvent(new window.Event('change', { bubbles: true }));
+  goalY.value = '0';
+  goalY.dispatchEvent(new window.Event('change', { bubbles: true }));
+  tick(2);
   const canvas = $('#spatial-viewport canvas');
-  $('[data-spatial-plane="mount"]').click();
   const beforeDrag = goalX.value;
   canvas.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, clientX: 500, clientY: 400, button: 0 }));
   canvas.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true, clientX: 570, clientY: 450, button: 0 }));
   tick(2);
   assert.equal(goalX.value, beforeDrag, 'an orbit drag must not move the goal');
-  canvas.dispatchEvent(new window.MouseEvent('pointerdown', { bubbles: true, clientX: 620, clientY: 430, button: 0 }));
-  canvas.dispatchEvent(new window.MouseEvent('pointerup', { bubbles: true, clientX: 620, clientY: 430, button: 0 }));
+
+  // The three camera presets are wired, including the side view of the A-frame.
+  ['bench', 'side', 'plan'].forEach((view) => {
+    $(`[data-spatial-view="${view}"]`).click();
+    tick(2);
+    assert.equal($('[data-spatial-view].is-active').dataset.spatialView, view);
+  });
+
+  // Home and randomise keep the arm inside its joint travel.
+  $('#s-random').click();
   tick(2);
+  document.querySelectorAll('#s-sliders .joint-control').forEach((control) => {
+    const slider = control.querySelector('.joint-range');
+    const value = Number(slider.value);
+    assert.ok(value >= Number(slider.min) - 1e-9 && value <= Number(slider.max) + 1e-9, 'random pose stays in travel');
+  });
+  $('#s-reset').click();
+  tick(2);
+  assert.equal($('#s-pos-z').textContent, '0.740');
+
+  // The scene graph itself must agree with the kinematics: the hinge chain in
+  // three.js has to put the tool where the maths says it is.
+  const lab = window.__robotLab;
+  assert.ok(lab, 'main.js exposes the views for verification');
+  const { scene } = lab.views.spatial;
+  const { Vector3 } = await import('three');
+  const observed = new Vector3().setFromMatrixPosition(scene.toolGroup.matrixWorld);
+  const { solveForward, BENCH } = await import(`${root}src/crane-kinematics.js`);
+  const predicted = solveForward(scene.angles).tip;
+  for (const axis of ['x', 'y', 'z']) {
+    assert.ok(Math.abs(observed[axis] - predicted[axis]) < 1e-6, `tool ${axis} matches the kinematics`);
+  }
+  assert.equal(scene.elbowGroup.parent, scene.pitchGroup, 'the elbow hinge hangs off the shoulder');
+  assert.equal(scene.pitchGroup.parent, scene.yawGroup, 'the shoulder hinge sits on the yaw turret');
+  // Home pose: tool on the bench top, elbow a good hand's width above it.
+  assert.ok(Math.abs(observed.z - BENCH.height) < 1e-6, 'the home tool point rests on the bench');
+  const elbowWorld = new Vector3().setFromMatrixPosition(scene.elbowGroup.matrixWorld);
+  assert.ok(elbowWorld.z - BENCH.height > 0.2, 'the elbow is thrown above the bench');
 
   // Back to the six-axis tab; sliders and toggles still work.
   $('#tab-six').click();

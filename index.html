@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#08111a" />
-    <meta name="description" content="Interactive robot kinematics lab: a six-axis articulated arm with live Denavit–Hartenberg math, and a three-DOF arm that moves in the plane it is mounted on." />
-    <title>Robot Kinematics Lab · 6R Articulated &amp; 3R Planar Arms</title>
+    <meta name="description" content="Interactive robot kinematics lab: a six-axis articulated arm with live Denavit–Hartenberg math, and a three-DOF bench crane with a yaw axis and two hinges." />
+    <title>Robot Kinematics Lab · 6R Articulated &amp; 3R Bench Crane</title>
   </head>
   <body>
     <header class="topbar">
@@ -13,7 +13,7 @@
       <div class="brand-copy">
         <p class="eyebrow">MECHANISM STUDY <span>/</span> ROBOT KINEMATICS</p>
         <h1>Two arms. Two ways to reach.</h1>
-        <p class="subtitle">A six-axis articulated arm, and a three-axis shoulder–elbow arm that raises its elbow and reaches between two levels.</p>
+        <p class="subtitle">A six-axis articulated arm, and a three-axis bench crane that folds its elbow up and sets its tool back down on the work surface.</p>
       </div>
       <div class="header-meta">
         <div class="sim-status"><span class="status-dot"></span>SIMULATION LIVE</div>
@@ -26,9 +26,9 @@
         <span class="tab-badge" aria-hidden="true">6R</span>
         <span class="tab-copy"><strong>Six-axis articulated arm</strong><small>3D · Denavit–Hartenberg · x / y / z</small></span>
       </button>
-      <button class="tab" type="button" role="tab" id="tab-spatial" aria-controls="panel-spatial" aria-selected="false" tabindex="-1" data-tab="spatial" data-model="3R · TWO-AXIS SHOULDER">
+      <button class="tab" type="button" role="tab" id="tab-spatial" aria-controls="panel-spatial" aria-selected="false" tabindex="-1" data-tab="spatial" data-model="3R · BENCH CRANE">
         <span class="tab-badge" aria-hidden="true">3R</span>
-        <span class="tab-copy"><strong>Shoulder–elbow arm</strong><small>Raised elbow · two working planes</small></span>
+        <span class="tab-copy"><strong>Bench crane arm</strong><small>3R · yaw + two hinges · bench top</small></span>
       </button>
     </nav>
 
@@ -157,61 +157,55 @@
       </section>
 
       <section class="tab-panel" id="panel-spatial" role="tabpanel" aria-labelledby="tab-spatial" hidden>
-        <section class="visual-card" aria-label="Interactive 3D model of a three degree of freedom arm with a two axis shoulder and a raised elbow, mounted on an upper bench and reaching down to a lower bench">
+        <section class="visual-card" aria-label="Interactive 3D model of a three axis crane arm bolted to a workbench">
           <div class="viewport" id="spatial-viewport">
             <div class="viewport-topline">
-              <div><span class="micro-label">SPATIAL ARM SIMULATION</span><span class="viewport-divider">/</span><span class="coordinate-tag">TWO-LEVEL BENCH · METRES</span></div>
+              <div><span class="micro-label">BENCH ARM SIMULATION</span><span class="viewport-divider">/</span><span class="coordinate-tag">BENCH FRAME · METRES</span></div>
               <div class="dof-pill"><span>3</span> REVOLUTE DOF</div>
             </div>
 
             <div class="view-switch" role="group" aria-label="Camera view">
-              <button type="button" data-spatial-view="iso" class="is-active" aria-pressed="true" title="Oblique view of both benches">Bench view</button>
-              <button type="button" data-spatial-view="side" aria-pressed="false" title="Look along the benches to read the elbow and pitches">Side view</button>
-              <button type="button" data-spatial-view="top" aria-pressed="false" title="Look straight down on both planes">Plan view</button>
+              <button type="button" data-spatial-view="bench" class="is-active" aria-pressed="true" title="Oblique view of the bench and the arm">Bench view</button>
+              <button type="button" data-spatial-view="side" aria-pressed="false" title="Stand at right angles to the arm: the A-frame in profile">Side view</button>
+              <button type="button" data-spatial-view="plan" aria-pressed="false" title="Look straight down on the bench">Plan view</button>
             </div>
 
             <div class="viewport-bottomline">
-              <div class="view-hint"><span class="mouse-icon" aria-hidden="true"></span>DRAG TO ORBIT <i>·</i> SCROLL TO ZOOM <i>·</i> CLICK A BENCH TO SET THE GOAL</div>
+              <div class="view-hint"><span class="mouse-icon" aria-hidden="true"></span>DRAG TO ORBIT <i>·</i> SCROLL TO ZOOM <i>·</i> CLICK THE BENCH TO SET THE GOAL</div>
               <div class="axis-legend"><span><b class="axis-x"></b>X</span><span><b class="axis-y"></b>Y</span><span><b class="axis-z"></b>Z</span></div>
             </div>
             <div class="viewport-readout" aria-live="polite">
-              <span class="readout-kicker">TOOL CENTER POINT</span>
+              <span class="readout-kicker">TOOL POINT</span>
               <strong id="s-viewport-position">X 0.000 <em>Y 0.000</em> Z 0.000</strong>
             </div>
           </div>
         </section>
 
-        <aside class="model-panel" id="spatial-panel" aria-label="Spatial arm controls and kinematics">
+        <aside class="model-panel" id="spatial-panel" aria-label="Bench arm controls and kinematics">
           <section class="panel-section controls-section">
             <div class="section-heading">
               <div><p class="section-kicker">01 / INPUT</p><h2>Joints</h2></div>
               <span class="count-chip">3 DOF</span>
             </div>
-            <p class="section-description">The shoulder carries two axes: <b>yaw</b> to swing between the two working areas, and <b>pitch</b> to throw the elbow up. The <b>elbow</b> then drops the long forearm onto the lower plane.</p>
+            <p class="section-description">One <b>yaw</b> axis bolted upright on the bench, a <b>shoulder</b> hinge on a short mast, and an <b>elbow</b> hinge that folds the forearm back down onto the bench top.</p>
             <div class="mode-switch" role="group" aria-label="Control mode">
               <button type="button" data-spatial-mode="fk" class="is-active" aria-pressed="true">Joint angles</button>
               <button type="button" data-spatial-mode="ik" aria-pressed="false">Goal point</button>
             </div>
-            <p class="mode-note" id="s-mode-note">Move a joint slider, or click a bench to switch to goal control.</p>
+            <p class="mode-note" id="s-mode-note">Move a joint slider, or click the bench to switch to goal control.</p>
             <div id="s-sliders" class="slider-list"></div>
 
             <div class="target-fields" id="s-goal-fields">
-              <div class="segmented segmented-planes" role="group" aria-label="Target plane">
-                <span>PLANE</span>
-                <button type="button" data-spatial-plane="mount" aria-pressed="false">P1 · mount</button>
-                <button type="button" data-spatial-plane="lower" class="is-active" aria-pressed="true">P2 · lower</button>
-              </div>
               <div class="field-row field-row-2">
                 <label>X <small>m</small><input id="s-goal-x" type="number" step="0.01" value="0" /></label>
                 <label>Y <small>m</small><input id="s-goal-y" type="number" step="0.01" value="0" /></label>
               </div>
-              <p class="goal-plane-note">Goal on <b id="s-goal-plane-label">Plane 2 · lower surface</b> at height <b id="s-goal-z">0.45 m</b>.</p>
-              <div class="segmented" role="group" aria-label="Elbow configuration">
-                <span>ELBOW</span>
-                <button type="button" data-spatial-elbow="up" aria-pressed="true" class="is-active">Up (crane)</button>
-                <button type="button" data-spatial-elbow="down" aria-pressed="false">Down</button>
+              <p class="goal-plane-note">Goal on the bench top at <b id="s-goal-z">0.74 m</b>. The arm solves yaw first, then both hinges.</p>
+              <div class="button-row button-row-compact">
+                <button id="s-copy-pose" class="button button-ghost" type="button"><span aria-hidden="true">⤓</span> Copy current tool point</button>
+                <button id="s-centre-goal" class="button button-ghost" type="button"><span aria-hidden="true">◎</span> Centre the goal</button>
               </div>
-              <button id="s-copy-pose" class="button button-ghost" type="button"><span aria-hidden="true">⤓</span> Copy current tool position to goal</button>
+              <p class="goal-plane-note" id="s-goal-note">Switch to goal control to drive the tool point to a spot on the bench.</p>
             </div>
 
             <div class="button-row">
@@ -219,7 +213,7 @@
               <button id="s-random" class="button button-primary" type="button"><span aria-hidden="true">✳</span> Randomize</button>
             </div>
             <div class="toggle-row">
-              <label class="toggle"><input type="checkbox" id="s-show-rings" checked /><span class="switch"></span><span>Reach on planes</span></label>
+              <label class="toggle"><input type="checkbox" id="s-show-rings" checked /><span class="switch"></span><span>Working band</span></label>
               <label class="toggle"><input type="checkbox" id="s-show-frames" checked /><span class="switch"></span><span>Joint frames</span></label>
               <label class="toggle"><input type="checkbox" id="s-animate" /><span class="switch"></span><span>Demo tour</span></label>
             </div>
@@ -227,7 +221,7 @@
 
           <section class="panel-section pose-section">
             <div class="section-heading">
-              <div><p class="section-kicker">02 / OUTPUT</p><h2>Tool pose</h2></div>
+              <div><p class="section-kicker">02 / OUTPUT</p><h2>Tool point</h2></div>
               <span class="live-tag"><i></i>LIVE</span>
             </div>
             <div class="position-grid">
@@ -236,51 +230,51 @@
               <div class="position-cell"><span>Z <small>m</small></span><strong id="s-pos-z">0.000</strong></div>
             </div>
             <div class="metric-row">
-              <div><span>ELBOW HEIGHT</span><b id="s-elbow-height">0.000 m</b></div>
-              <div><span>ABOVE SHOULDER</span><b id="s-elbow-rise">+0.000 m</b></div>
-              <div><span>ELBOW</span><b id="s-elbow-state" class="status-chip chip-ok">HIGH</b></div>
+              <div><span>RADIUS <small>from axis</small></span><b id="s-radial">0.000 m</b></div>
+              <div><span>ELBOW <small>above bench</small></span><b id="s-elbow-height">+0.000 m</b></div>
+              <div><span>FOREARM <small>elevation</small></span><b id="s-forearm-angle">0.0°</b></div>
             </div>
             <div class="metric-row">
-              <div><span>REACH <small>from shoulder</small></span><b id="s-reach">0.000 m</b></div>
-              <div><span>FOREARM <small>elevation</small></span><b id="s-forearm-angle">0.0°</b></div>
-              <div><span>TOOL IS</span><b id="s-contact-state" class="status-chip chip-ok">ON A PLANE</b></div>
+              <div><span>TOOL <small>above bench</small></span><b id="s-height">+0.000 m</b></div>
+              <div><span>TOOL IS</span><b id="s-bench-state" class="status-chip chip-ok">ON THE BENCH</b></div>
+              <div><span>GOAL</span><b id="s-reach-status" class="status-chip chip-neutral">JOINT-SPACE</b></div>
             </div>
             <div class="frames-block">
-              <div class="frames-title">JOINT ANGLES <small>SHOULDER YAW · SHOULDER PITCH · ELBOW PITCH</small></div>
+              <div class="frames-title">JOINT ANGLES <small>YAW · SHOULDER PITCH · ELBOW PITCH</small></div>
               <div class="angle-chips">
                 <div><span>θ₁ yaw</span><b id="s-yaw">0.0°</b></div>
-                <div><span>θ₂ pitch</span><b id="s-pitch">0.0°</b></div>
+                <div><span>θ₂ shoulder</span><b id="s-pitch">0.0°</b></div>
                 <div><span>θ₃ elbow</span><b id="s-elbow-angle">0.0°</b></div>
               </div>
-            </div>
-            <div class="metric-row metric-row-single">
-              <div><span>GOAL STATUS</span><b id="s-reach-status" class="status-chip chip-neutral">JOINT-SPACE CONTROL</b></div>
             </div>
           </section>
 
           <section class="panel-section geometry-section">
             <div class="section-heading">
-              <div><p class="section-kicker">03 / GEOMETRY</p><h2>Arm &amp; planes</h2></div>
+              <div><p class="section-kicker">03 / GEOMETRY</p><h2>Bench &amp; links</h2></div>
               <span class="unit-chip">SI UNITS</span>
             </div>
-            <p class="section-description">A short upper arm and a long forearm: the elbow is thrown high above the shoulder, and the forearm spans down to the lower bench.</p>
+            <p class="section-description">A short mast, a 0.36 m upper arm and a 0.52 m forearm. The elbow ends up roughly 0.3 m above the bench while the tool comes back down to the surface.</p>
             <div class="table-wrap">
               <table id="s-link-table">
-                <thead><tr><th>Lᵢ <small>m</small></th><th>length</th><th>between joints</th><th>role</th></tr></thead>
+                <thead><tr><th>Lᵢ</th><th>length <small>m</small></th><th>between</th><th>role</th></tr></thead>
                 <tbody></tbody>
               </table>
             </div>
             <div class="table-wrap plane-table-wrap">
-              <table id="s-plane-table">
-                <thead><tr><th>plane</th><th>height</th><th>reachable</th></tr></thead>
+              <table>
+                <thead><tr><th>bench capacity</th><th>value</th></tr></thead>
                 <tbody>
-                  <tr><td>P1 · mounting</td><td id="s-plane-mount-height">0.85 m</td><td id="s-plane-mount-reach">–</td></tr>
-                  <tr><td>P2 · lower</td><td id="s-plane-lower-height">0.45 m</td><td id="s-plane-lower-reach">–</td></tr>
+                  <tr><td>Bench top</td><td id="s-bench-height">0.74 m</td></tr>
+                  <tr><td>Shoulder hinge height</td><td id="s-shoulder-height">0.91 m</td></tr>
+                  <tr><td>Band, inner radius</td><td id="s-band-inner">0.17 m</td></tr>
+                  <tr><td>Band, outer radius</td><td id="s-band-outer">0.84 m</td></tr>
+                  <tr><td>Straight-arm reach</td><td id="s-reach-limit">0.88 m</td></tr>
                 </tbody>
               </table>
             </div>
             <div class="frames-block">
-              <div class="frames-title">FRAME ORIGINS <small>BASE COORDINATES · x, y, z · m</small></div>
+              <div class="frames-title">FRAME ORIGINS <small>BENCH COORDINATES · x, y, z · m</small></div>
               <div id="s-frames" class="frame-list frame-list-1col"></div>
             </div>
           </section>
@@ -291,12 +285,11 @@
               <span class="unit-chip">LIVE</span>
             </div>
             <div class="equation-card">
-              <div class="equation-main">z<sub>E</sub> = z<sub>S</sub> + L₁ sin θ₂</div>
               <div class="equation-main">R = L₁ cos θ₂ + L<sub>f</sub> cos(θ₂ − θ₃)</div>
               <div class="equation-main">z = z<sub>S</sub> + L₁ sin θ₂ + L<sub>f</sub> sin(θ₂ − θ₃)</div>
               <div class="equation-rule"></div>
               <div class="equation-main">x = R cos θ₁ &nbsp; y = R sin θ₁</div>
-              <div class="equation-sub">θ₂ − θ₃ is the forearm elevation — negative means the forearm points down.</div>
+              <div class="equation-sub">θ₂ − θ₃ is the forearm elevation: negative means the forearm, and the tool fixed to it, point down at the bench.</div>
             </div>
             <div class="jacobian-block">
               <div class="frames-title">JACOBIAN <small>J = ∂(x, y, z) / ∂(θ₁, θ₂, θ₃)</small></div>
@@ -316,11 +309,11 @@
               <summary>How the goal point is solved</summary>
               <div class="matrix-formula" aria-label="Inverse kinematics of the two-link elbow">
                 <span>d = |TCP − S|</span>
-                <span class="bracket">cos β = (d² + L₁² − L<sub>f</sub>²) / 2 d L₁<br />θ₂ = α ± β &nbsp; (α = elevation of the goal, β = elbow triangle)<br />θ₃ = θ₂ − ψ &nbsp; (ψ = elevation of the goal seen from the elbow)</span>
+                <span class="bracket">cos β = (d² + L₁² − L<sub>f</sub>²) / 2 d L₁<br />θ₂ = α + β &nbsp; (α = elevation of the goal, β = elbow triangle)<br />θ₃ = θ₂ − ψ &nbsp; (ψ = elevation of the forearm)</span>
               </div>
-              <p class="formula-note">Yaw points the arm at the goal first, then the shoulder-to-tip line and the elbow form a triangle. <b>Up</b> lifts the elbow above that line (a crane); <b>down</b> folds it underneath. With the tool below the shoulder only the raised solution stays inside the shoulder's travel.</p>
+              <p class="formula-note">The yaw axis aims at the goal's bearing first, so what remains is a two-link triangle in that vertical plane. The elbow is taken as the <b>upper</b> solution — folded up above the line from the shoulder to the goal — because the lower one would put the elbow under the bench. Goals outside the joint travel are answered with the nearest pose the arm can actually hold.</p>
             </details>
-            <p class="assumption-note"><span>MODEL NOTE</span> Ideal revolute joints, rigid links, no self-collision or floor checking beyond the two planes. The tool stays collinear with the forearm, so the gripper's <i>reach</i> matters and its roll does not.</p>
+            <p class="assumption-note"><span>MODEL NOTE</span> Ideal revolute joints and rigid links: no servo calibration, backlash, sag, collisions or floor contact is simulated. The tool is fixed to the forearm, so its position is controlled but its angle always follows the forearm.</p>
           </section>
 
           <section class="panel-section glossary-section" aria-labelledby="spatial-glossary-heading">
@@ -328,17 +321,17 @@
               <div><p class="section-kicker">05 / REFERENCE</p><h2 id="spatial-glossary-heading">Plain-language glossary</h2></div>
             </div>
             <dl class="glossary-list">
-              <div class="glossary-item"><dt>Two-axis shoulder</dt><dd>One joint turns the arm around the vertical stand (yaw) and the other tips it up and down (pitch). Two axes at one joint = two degrees of freedom.</dd></div>
-              <div class="glossary-item"><dt>Raised elbow</dt><dd>The shoulder throws the upper arm above horizontal, so the elbow sits in the air above the bench the arm is mounted on.</dd></div>
-              <div class="glossary-item"><dt>Working plane</dt><dd>One of the two flat surfaces. Plane 1 is where the arm is bolted; plane 2 is the lower bench the tool reaches down to.</dd></div>
-              <div class="glossary-item"><dt>Forearm elevation</dt><dd>The angle of the forearm from horizontal. Negative values mean it hangs downward, which is what reaches plane 2.</dd></div>
-              <div class="glossary-item"><dt>Elbow up / down</dt><dd>Two mirror solutions for the same goal point: elbow above the shoulder-to-goal line, or below it.</dd></div>
-              <div class="glossary-item"><dt>Reach on a plane</dt><dd>The ring of points the tool can touch on a given surface, limited by how far the arm can extend and how far it can fold.</dd></div>
-              <div class="glossary-item"><dt>Degrees of freedom</dt><dd>The independent motions available. Yaw, shoulder pitch and elbow pitch set X, Y and Z of the tool — three in, three out.</dd></div>
-              <div class="glossary-item"><dt>Jacobian determinant</dt><dd>How freely the tool can move in all three directions. Zero means a stretched or folded pose where some directions are impossible.</dd></div>
+              <div class="glossary-item"><dt>Yaw axis</dt><dd>The vertical joint bolted to the bench. Turn it and the whole arm sweeps around the bench like a turntable.</dd></div>
+              <div class="glossary-item"><dt>Shoulder hinge</dt><dd>The first of the two horizontal hinges. It lifts the upper arm, which is what throws the elbow up into the air.</dd></div>
+              <div class="glossary-item"><dt>Elbow hinge</dt><dd>The second horizontal hinge. It folds the forearm back down so the tool lands on the bench instead of stretching out into the room.</dd></div>
+              <div class="glossary-item"><dt>A-frame pose</dt><dd>The working shape: mast up, upper arm out and up, forearm back and down. Like a crane or an archer's arm.</dd></div>
+              <div class="glossary-item"><dt>Forearm elevation</dt><dd>The angle of the forearm from horizontal. Negative values mean it points down, which is what puts the tool on the bench.</dd></div>
+              <div class="glossary-item"><dt>Working band</dt><dd>The ring on the bench the tool can be driven over. The inner edge keeps the tool clear of the mast; the outer edge is how far the arm reaches.</dd></div>
+              <div class="glossary-item"><dt>Degrees of freedom</dt><dd>Independent motions. Here three joints set the tool's X, Y and Z — enough to place a point, not enough to also choose which way the tool faces.</dd></div>
+              <div class="glossary-item"><dt>Jacobian determinant</dt><dd>How freely the tool can move in every direction. Near zero means a stretched or folded pose where some directions are impossible.</dd></div>
             </dl>
           </section>
-          <footer class="panel-footer">KINEMATICS LAB <span>·</span> 3R SHOULDER–ELBOW ARM · TWO PLANES</footer>
+          <footer class="panel-footer">KINEMATICS LAB <span>·</span> 3R BENCH CRANE</footer>
         </aside>
       </section>
     </main>

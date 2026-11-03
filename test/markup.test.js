@@ -28,27 +28,32 @@ test('element ids are unique so each tab can scope its own queries', () => {
   assert.ok(ids.has('spatial-panel'));
 });
 
-test('the second tab models a two-axis shoulder over two working planes', () => {
+test('the second tab models the bench crane from the sketch', () => {
   const panel = html.slice(html.indexOf('id="panel-spatial"'), html.indexOf('</main>'));
   assert.match(panel, /3<\/span> REVOLUTE DOF/);
-  assert.match(panel, /TWO-LEVEL BENCH/);
-  assert.match(panel, /two working areas|working plane/i);
+  assert.match(panel, /BENCH FRAME/);
+  assert.match(panel, /yaw/i);
+  assert.match(panel, /shoulder/i);
+  assert.match(panel, /elbow/i);
   assert.match(panel, /data-spatial-mode="fk"/);
   assert.match(panel, /data-spatial-mode="ik"/);
-  assert.match(panel, /data-spatial-plane="mount"/);
-  assert.match(panel, /data-spatial-plane="lower"/);
-  assert.match(panel, /data-spatial-elbow="up"/);
-  assert.match(panel, /data-spatial-elbow="down"/);
+  assert.match(panel, /data-spatial-view="bench"/);
+  assert.match(panel, /data-spatial-view="side"/);
+  assert.match(panel, /data-spatial-view="plan"/);
   assert.match(panel, /id="s-goal-x"/);
   assert.match(panel, /id="s-goal-y"/);
-  assert.match(panel, /id="s-elbow-state"/);
-  assert.match(panel, /id="s-contact-state"/);
+  assert.match(panel, /id="s-bench-state"/);
+  assert.match(panel, /id="s-radial"/);
+  assert.match(panel, /id="s-band-outer"/);
+  // The old two-plane model is gone for good.
+  assert.doesNotMatch(panel, /data-spatial-plane/);
+  assert.doesNotMatch(panel, /working planes/i);
 });
 
 test('every literal id queried by a view exists in the markup', () => {
   for (const file of ['src/spatial-view.js', 'src/six-axis-view.js']) {
     const source = read(file);
-    // Template selectors (`#p-slider-${index}`) are covered by the test below.
+    // Template selectors (`#s-slider-${index}`) are covered by the test below.
     const selectors = new Set(
       [...source.matchAll(/\$\(\s*[`'"]#([A-Za-z0-9_-]+)/g)]
         .map((match) => match[1])
@@ -73,24 +78,27 @@ test('both views inject the ids their dynamic selectors expect', () => {
 test('main.js mounts both views and renders only the active tab', () => {
   const source = read('src/main.js');
   assert.match(source, /createSixAxisView\(panels\.six\)/);
-  assert.match(source, /createSpatialView\(panels\.spatial\)/);
+  assert.match(source, /createCraneView\(panels\.spatial\)/);
   assert.match(source, /views\[activeTab\]\.tick/);
   assert.match(source, /ArrowRight/);
   assert.match(source, /ArrowLeft/);
 });
 
-test('the spatial view offers three camera angles including a side view', () => {
+test('the crane view offers three camera angles, including a side view of the A-frame', () => {
   const source = read('src/spatial-view.js');
   assert.match(source, /data-spatial-view/);
   assert.match(source, /PerspectiveCamera/);
   assert.match(source, /OrbitControls/);
+  assert.match(source, /createCraneView/);
+  // The arm is a real hinge chain: the elbow group is a child of the shoulder.
+  assert.match(source, /pitchGroup\.add\(elbowGroup\)/);
   assert.match(read('index.html'), /data-spatial-view="side"/);
 });
 
 test('the README documents both tabs', () => {
   const readme = read('README.md');
   assert.match(readme, /Six-axis articulated arm/);
-  assert.match(readme, /Shoulder–elbow arm/);
+  assert.match(readme, /Bench crane arm/);
   assert.match(readme, /#spatial/);
   assert.match(readme, /inverse kinematics/i);
 });

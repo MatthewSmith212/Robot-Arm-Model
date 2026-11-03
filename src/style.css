@@ -786,3 +786,7 @@ h2 { margin: 0; color: #e7eff1; font-size: 15px; line-height: 1.2; font-weight: 
 
 /* Three camera buttons in the switch. */
 .view-switch button { white-space: nowrap; }
+
+/* Bench-crane panel: two compact ghost buttons side by side under the goal fields. */
+.button-row-compact { margin-top: 2px; gap: 6px; }
+.button-row-compact .button { min-height: 29px; padding: 0 8px; font-size: 9px; letter-spacing: .1px; }

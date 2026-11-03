@@ -1,5 +1,5 @@
 import { createSixAxisView } from './six-axis-view.js';
-import { createSpatialView } from './spatial-view.js';
+import { createCraneView } from './spatial-view.js';
 import './style.css';
 
 const tabs = Array.from(document.querySelectorAll('[data-tab]'));
@@ -13,7 +13,7 @@ let activeTab = 'six';
 
 const views = {
   six: createSixAxisView(panels.six),
-  spatial: createSpatialView(panels.spatial),
+  spatial: createCraneView(panels.spatial),
 };
 
 function selectTab(name, { focus = false } = {}) {
@@ -60,6 +60,9 @@ tabs.forEach((tab) => {
     window.history.replaceState(null, '', `#${tab.dataset.tab}`);
   });
 });
+
+// Exposed for the DOM smoke test, which reads the real scene graph back.
+if (typeof window !== 'undefined') window.__robotLab = { views, selectTab };
 
 // Only the visible tab renders and animates, so the hidden arm costs nothing.
 let lastTime = performance.now();

@@ -6,7 +6,7 @@ different ways. Both live in the same page as tabs.
 | Tab | Model | What it shows |
 | --- | --- | --- |
 | **Six-axis articulated arm** | 6 revolute joints (6R), standard Denavit–Hartenberg | Full 3D reach: base swivel, shoulder, elbow, three wrist axes, live transform matrix. |
-| **Shoulder–elbow arm** | 3 revolute joints (3R): two-axis shoulder + elbow | A raised elbow and a long forearm reaching between two working planes, with joint-space and goal-point control. |
+| **Bench crane arm** | 3 revolute joints (3R): vertical yaw + two parallel hinges | The hand sketch as a buildable mechanism: a mast on the bench, the elbow thrown up into an A-frame, and the tool folding back down onto the bench top. |
 
 ## Run locally
 
@@ -28,12 +28,12 @@ notice instead of a blank panel, and the tab can still be switched safely.
 `npm test` runs:
 
 - `kinematics.test.js` — six-axis DH transforms and ZYX roll–pitch–yaw.
-- `spatial-kinematics.test.js` — shoulder–elbow forward kinematics, the elbow being
-  thrown above the shoulder, Jacobian against finite differences, inverse kinematics
-  round-trips on both planes, joint-limit fallbacks, workspace clamping.
+- `crane-kinematics.test.js` — bench-crane forward kinematics, the A-frame home pose,
+  Jacobian against finite differences, inverse kinematics round-trips over the whole
+  working band, joint-limit and workspace clamping, unreachable-surface reporting.
 - `markup.test.js` — tab wiring, unique element ids, and every DOM selector each view uses.
 - `dom-smoke.test.js` — boots the real page in jsdom with a stubbed WebGL context,
-  mounts both views, switches tabs, solves goals on both planes, clicks a bench, and
+  mounts both views, switches tabs, solves goals on the bench, clicks the bench, and
   fails on any runtime error.
 
 ## Tab 1 · Six-axis articulated arm
@@ -65,88 +65,120 @@ pTCP = T₀⁶ · [0, 0, 0, 1]ᵀ
 
 The position shown is relative to the center of joint 1's rotation axis; the base pedestal is only a visual offset. The end frame is the gripper's nominal tool-center point.
 
-## Tab 2 · Shoulder–elbow arm between two planes
+## Tab 2 · Bench crane arm (3R)
 
-A three-axis arm bolted to an upper bench that throws its elbow into the air and
-rests its tool on a lower bench — the two-tier setup in the reference sketch. The
-shoulder carries **two** axes, which is what lets the tool move in three dimensions
-instead of sliding around a single plane.
+The sketch, taken literally, defines a perfectly ordinary and very buildable 3R
+manipulator: a base bolted flat to the bench, a vertical axis, and two parallel
+horizontal hinges. The point of the layout is that the **elbow goes up** while the
+**tool comes down**: the upper arm rises away from the bench, the elbow turns over,
+and the forearm returns to the same surface the arm is bolted to.
+
+```
+        elbow  ┌──┐
+        ●──────┘  ╲
+   upper arm ╱     ╲ forearm
+            ╱       ╲
+     ┌─────╱         ╲
+   ──┴── J1 ────────── ● tool point, on the bench top
+```
 
 ### Joints
 
 | Joint | Axis | Role |
 | --- | --- | --- |
-| θ₁ · shoulder yaw | vertical (Z) | Swings the whole arm between the two working areas. |
-| θ₂ · shoulder pitch | horizontal | **Second shoulder axis**: throws the short upper arm — and the elbow — up above the bench. |
-| θ₃ · elbow pitch | horizontal | Drops the long forearm down onto the lower plane. |
+| θ₁ · base yaw | vertical, bolted to the bench | Swings the whole arm around the bench. |
+| θ₂ · shoulder pitch | horizontal, at the top of the mast | Throws the upper arm — and the elbow — up above the bench. |
+| θ₃ · elbow pitch | horizontal, parallel to the shoulder | Folds the forearm back down so the tool lands on the surface. |
 
-### Geometry
+The short mast is what makes the sketch work: without it the shoulder hinge would
+sit *on* the bench and the forearm could never get under the tool.
 
-| Link | Length (m) | Between |
+### Dimensions
+
+| Item | Value | Between |
 | --- | ---: | --- |
-| Upper arm L₁ | 0.32 | shoulder → elbow |
-| Forearm L_f | 0.62 | elbow → wrist |
-| Tool | 0.16 | wrist → tool center point (collinear with the forearm) |
+| Mast | 0.17 m | bench top → shoulder hinge |
+| Upper arm L₁ | 0.36 m | shoulder hinge → elbow hinge |
+| Forearm L_f | 0.52 m | elbow hinge → tool point |
+| Bench top | 0.74 m | floor (a normal desk height) |
+| Shoulder hinge | 0.91 m | floor |
+| Working band | 0.17 – 0.84 m | ring on the bench the tool can be driven over |
+| Straight-arm reach | 0.88 m | shoulder hinge → fully stretched tool |
 
-| Working plane | Height | Notes |
-| --- | ---: | --- |
-| P1 · mounting surface | 0.85 m | The arm is bolted here; the shoulder pitch axis is 0.10 m above it. |
-| P2 · lower surface | 0.45 m | The tool reaches down onto this bench. |
-
-The short upper arm plus the long forearm is deliberate: the elbow can be thrown
-~30 cm above the shoulder while the tool still reaches a surface 40 cm below it.
+A 0.36 m upper arm with a 0.52 m forearm is deliberate: the elbow ends up about
+0.3 m above the bench while the tool still comes down onto it.
 
 ### Forward kinematics
 
 ```text
-z_E = z_S + L₁ sin θ₂                          elbow height
-R   = L₁ cos θ₂ + L_f cos(θ₂ − θ₃)             horizontal reach
-z   = z_S + L₁ sin θ₂ + L_f sin(θ₂ − θ₃)       tool height
-x   = R cos θ₁     y = R sin θ₁                yaw carries it into 3D
+R = L₁ cos θ₂ + L_f cos(θ₂ − θ₃)            horizontal reach from the yaw axis
+z = z_S + L₁ sin θ₂ + L_f sin(θ₂ − θ₃)      tool height (z_S = 0.91 m)
+x = R cos θ₁     y = R sin θ₁               yaw carries it around the bench
 ```
 
-`θ₂ − θ₃` is the forearm elevation: negative means the forearm points down, which
-is the pose that reaches the lower plane.
+`θ₂ − θ₃` is the forearm elevation. Negative means the forearm — and the tool fixed
+to it — points down at the bench; that is the working pose.
 
 ### Inverse kinematics (goal point)
 
-Yaw points the arm at the goal, then the shoulder-to-tip line and the elbow form a
-triangle:
+Yaw aims the arm at the goal's bearing, which leaves a two-link triangle in that
+vertical plane:
 
 ```text
 d = |TCP − S|
 cos β = (d² + L₁² − L_f²) / (2 d L₁)
-θ₂ = α ± β        α = elevation of the goal, β = elbow triangle
-θ₃ = θ₂ − ψ       ψ = elevation of the goal seen from the elbow
+θ₂ = α + β        α = elevation of the goal, β = elbow triangle
+θ₃ = θ₂ − ψ       ψ = elevation of the forearm
 ```
 
-**Elbow up** lifts the elbow above the shoulder-to-goal line (the crane pose);
-**elbow down** folds it underneath. With the tool below the shoulder only the raised
-solution stays inside the shoulder's travel. Goals that are inside the arm's reach
-but outside the joint limits are solved to the nearest pose the arm can actually
-hold and reported as clamped; goals beyond the arm's length are clamped to the
-workspace boundary.
+The upper solution is used: the elbow folds up above the shoulder-to-goal line like
+a crane. The lower solution would put the elbow underneath the bench. Goals outside
+the joint travel — behind the base, inside the mast, off the end of the arm — are
+answered with the nearest pose the joints can actually hold and reported as such
+rather than refusing the move.
 
 ### What the tab includes
 
-- Two-tier bench scene with both planes labelled, plus the reachable ring drawn flat
-  on each surface.
-- Three camera presets: **Bench view** (oblique), **Side view** (reads the elbow and
-  the two pitches) and **Plan view** (looks straight down on both planes).
-- Joint control with sliders and typed angles, live tool pose, elbow height and how
-  far it rises above the shoulder, forearm elevation, and which plane the tool is
-  touching.
-- Goal control: pick plane 1 or 2, type X/Y, or click a bench in the scene — a click
-  sets the goal while a drag still orbits.
+- Bench scene with legs and frame, the working band drawn on the top surface, and
+  radial ticks every 15° across the yaw travel.
+- Three camera presets: **Bench view** (oblique), **Side view** (perpendicular to the
+  arm, i.e. the sketch's own view) and **Plan view** (straight down on the bench).
+- Joint control with sliders and typed angles, live tool point, elbow height above
+  the bench, forearm elevation, and whether the tool is on, above or below the surface.
+- Goal control: type X/Y or click the bench — a click sets the goal while a drag orbits.
 - Live Jacobian `∂(x, y, z)/∂(θ₁, θ₂, θ₃)`, its determinant, and a DEXTEROUS /
   SINGULAR flag.
-- Home and random poses, a demo tour that touches both planes, and toggles for the
-  reach rings and joint frames.
+- Home and random poses, a demo tour that sweeps around the bench, and toggles for
+  the working band and joint frames.
+
+## Is the sketch workable?
+
+Yes — it is the most sensible three-axis layout for a bench project, and it is what
+desktop 3R arms (and the classic "SCARA-adjacent" teaching rigs) actually look like.
+A few things worth knowing before you build:
+
+- **Three axes place the tool, they do not aim it.** Yaw plus two hinges set X, Y and
+  Z of the tool point. The tool stays fixed to the forearm, so its angle always
+  follows the forearm. That is exactly right for a pen, a probe, a suction cup or a
+  laser that has to come down onto the bench; add two wrist axes if you ever need to
+  hold an object at a chosen angle.
+- **The mast matters.** Give the shoulder hinge 0.15–0.20 m of clearance above the
+  bench, or the forearm has nowhere to fold down into.
+- **Keep the tool clear of the axis.** The model reserves a 0.17 m inner radius.
+  Inside that, the turret and the gripper body collide with the mast even though the
+  maths can produce an answer.
+- **The tool point height is fixed by the arm.** Folding the elbow further always
+  pushes the tool lower, so the bench height is what the geometry has to be designed
+  around, not something you can correct afterwards.
+- **Two hinges in one plane is a weak spot.** When the arm is nearly straight, small
+  changes in θ₂ and θ₃ cancel each other out; the Jacobian determinant on the tab
+  drops towards zero there. That is why a real arm is usually driven through the
+  middle of its travel and geared down near the elbow.
 
 ## Model notes
 
 Both arms are ideal geometric models: revolute joints are exact, links are perfectly
-rigid, and no servo calibration, loads, backlash, compliance, gravity sag, collisions, or
-trajectory planning is simulated. The six-axis model predicts forward kinematics only; the
-shoulder–elbow tab also includes closed-form inverse kinematics, and its tool stays
-collinear with the forearm (the gripper's roll is not modelled).
+rigid, and no servo calibration, loads, backlash, compliance, gravity sag, collisions
+or trajectory planning is simulated. The six-axis model predicts forward kinematics
+only; the bench-crane tab also includes closed-form inverse kinematics, and its tool
+stays collinear with the forearm (no wrist roll).
