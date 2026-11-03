@@ -4,26 +4,39 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#08111a" />
-    <meta name="description" content="Interactive 6-DOF servo-driven robot arm with real-time forward kinematics and Denavit–Hartenberg calculations." />
-    <title>Servo Arm · Kinematics Lab</title>
+    <meta name="description" content="Interactive robot kinematics lab: a six-axis articulated arm with live Denavit–Hartenberg math, and a three-DOF arm that moves in the plane it is mounted on." />
+    <title>Robot Kinematics Lab · 6R Articulated &amp; 3R Planar Arms</title>
   </head>
   <body>
     <header class="topbar">
-      <div class="brand-mark" aria-hidden="true"><span>R</span><small>06</small></div>
+      <div class="brand-mark" aria-hidden="true"><span>R</span><small>LAB</small></div>
       <div class="brand-copy">
-        <p class="eyebrow">MECHANISM STUDY <span>/</span> FORWARD KINEMATICS</p>
-        <h1>Six axes. One precise position.</h1>
-        <p class="subtitle">A servo-driven arm, explored through live joint control and Denavit–Hartenberg transforms.</p>
+        <p class="eyebrow">MECHANISM STUDY <span>/</span> ROBOT KINEMATICS</p>
+        <h1>Two arms. Two ways to reach.</h1>
+        <p class="subtitle">A six-axis articulated arm in 3D, and a three-axis arm that sweeps the plane it is bolted to.</p>
       </div>
       <div class="header-meta">
         <div class="sim-status"><span class="status-dot"></span>SIMULATION LIVE</div>
-        <div class="model-meta"><span>MODEL</span><strong>6R · DH STANDARD</strong></div>
+        <div class="model-meta"><span>MODEL</span><strong id="active-model">6R · DH STANDARD</strong></div>
       </div>
     </header>
 
+    <nav class="tabs" role="tablist" aria-label="Robot models">
+      <button class="tab is-active" type="button" role="tab" id="tab-six" aria-controls="panel-six" aria-selected="true" data-tab="six" data-model="6R · DH STANDARD">
+        <span class="tab-badge" aria-hidden="true">6R</span>
+        <span class="tab-copy"><strong>Six-axis articulated arm</strong><small>3D · Denavit–Hartenberg · x / y / z</small></span>
+      </button>
+      <button class="tab" type="button" role="tab" id="tab-planar" aria-controls="panel-planar" aria-selected="false" tabindex="-1" data-tab="planar" data-model="3R · PLANAR FLOOR MOUNT">
+        <span class="tab-badge" aria-hidden="true">3R</span>
+        <span class="tab-copy"><strong>Planar arm on the floor</strong><small>2D plane · 3 DOF · joint &amp; target control</small></span>
+      </button>
+    </nav>
+
+
     <main id="workspace">
+      <section class="tab-panel is-active" id="panel-six" role="tabpanel" aria-labelledby="tab-six">
       <section class="visual-card" aria-label="Interactive 3D robotic arm model">
-        <div id="viewport">
+        <div class="viewport" id="six-viewport">
           <div class="viewport-topline">
             <div><span class="micro-label">ARM SIMULATION</span><span class="viewport-divider">/</span><span class="coordinate-tag">BASE FRAME · METERS</span></div>
             <div class="dof-pill"><span>6</span> REVOLUTE DOF</div>
@@ -39,7 +52,7 @@
         </div>
       </section>
 
-      <aside id="panel" aria-label="Robot controls and kinematics">
+      <aside class="model-panel" id="six-panel" aria-label="Six-axis robot controls and kinematics">
         <section class="panel-section controls-section">
           <div class="section-heading">
             <div><p class="section-kicker">01 / INPUT</p><h2>Joint controls</h2></div>
@@ -141,6 +154,166 @@
         </section>
         <footer class="panel-footer">KINEMATICS LAB <span>·</span> 6R ARTICULATED MANIPULATOR</footer>
       </aside>
+      </section>
+
+      <section class="tab-panel" id="panel-planar" role="tabpanel" aria-labelledby="tab-planar" hidden>
+        <section class="visual-card" aria-label="Interactive 3D model of a three-axis planar robotic arm mounted on a floor">
+          <div class="viewport" id="planar-viewport">
+            <div class="viewport-topline">
+              <div><span class="micro-label">PLANAR ARM SIMULATION</span><span class="viewport-divider">/</span><span class="coordinate-tag">FLOOR PLANE · METRES</span></div>
+              <div class="dof-pill"><span>3</span> REVOLUTE DOF</div>
+            </div>
+
+            <div class="view-switch" role="group" aria-label="Camera view">
+              <button type="button" data-planar-view="top" aria-pressed="false" title="Look straight down on the mounting plane">Plan view</button>
+              <button type="button" data-planar-view="iso" class="is-active" aria-pressed="true" title="Oblique view of the arm on the floor">Floor view</button>
+            </div>
+
+            <div class="viewport-bottomline">
+              <div class="view-hint"><span class="mouse-icon" aria-hidden="true"></span>DRAG TO MOVE GOAL <i>·</i> SCROLL TO ZOOM <i>·</i> SHIFT-DRAG TO PAN</div>
+              <div class="axis-legend"><span><b class="axis-x"></b>X</span><span><b class="axis-y"></b>Y</span><span><b class="axis-z"></b>Z</span></div>
+            </div>
+            <div class="viewport-readout" aria-live="polite">
+              <span class="readout-kicker">TOOL CENTER POINT</span>
+              <strong id="p-viewport-position">X 0.000 <em>Y 0.000</em> φ 0°</strong>
+            </div>
+          </div>
+        </section>
+
+        <aside class="model-panel" id="planar-panel" aria-label="Planar arm controls and kinematics">
+          <section class="panel-section controls-section">
+            <div class="section-heading">
+              <div><p class="section-kicker">01 / INPUT</p><h2>Joint controls</h2></div>
+              <span class="count-chip">3 DOF</span>
+            </div>
+            <p class="section-description">Three revolute joints share one parallel axis — the floor normal — so every link stays in the mounting plane.</p>
+            <div class="mode-switch" role="group" aria-label="Control mode">
+              <button type="button" data-planar-mode="fk" class="is-active" aria-pressed="true">Joint angles</button>
+              <button type="button" data-planar-mode="ik" aria-pressed="false">Goal pose</button>
+            </div>
+            <p class="mode-note" id="p-mode-note">Move a joint slider (or drag the floor to switch to target mode).</p>
+            <div id="p-sliders" class="slider-list"></div>
+            <div class="target-fields" id="p-target-fields">
+              <div class="field-row">
+                <label>X <small>m</small><input id="p-target-x" type="number" step="0.01" value="0" /></label>
+                <label>Y <small>m</small><input id="p-target-y" type="number" step="0.01" value="0" /></label>
+                <label>φ <small>deg</small><input id="p-target-phi" type="number" step="1" value="0" /></label>
+              </div>
+              <div class="segmented" role="group" aria-label="Elbow configuration">
+                <span>ELBOW</span>
+                <button type="button" data-planar-elbow="up" aria-pressed="true" class="is-active">Up</button>
+                <button type="button" data-planar-elbow="down" aria-pressed="false">Down</button>
+              </div>
+              <button id="p-copy-pose" class="button button-ghost" type="button"><span aria-hidden="true">⤓</span> Copy current pose to goal</button>
+            </div>
+            <div class="button-row">
+              <button id="p-reset" class="button button-secondary" type="button"><span aria-hidden="true">↺</span> Home pose</button>
+              <button id="p-random" class="button button-primary" type="button"><span aria-hidden="true">✳</span> Randomize</button>
+            </div>
+            <div class="toggle-row">
+              <label class="toggle"><input type="checkbox" id="p-show-rings" checked /><span class="switch"></span><span>Workspace rings</span></label>
+              <label class="toggle"><input type="checkbox" id="p-show-frames" checked /><span class="switch"></span><span>Joint frames</span></label>
+              <label class="toggle"><input type="checkbox" id="p-animate" /><span class="switch"></span><span>Demo motion</span></label>
+            </div>
+          </section>
+
+          <section class="panel-section pose-section">
+            <div class="section-heading">
+              <div><p class="section-kicker">02 / OUTPUT</p><h2>Tool pose in the plane</h2></div>
+              <span class="live-tag"><i></i>LIVE</span>
+            </div>
+            <div class="position-grid">
+              <div class="position-cell"><span>X <small>m</small></span><strong id="p-pos-x">0.000</strong></div>
+              <div class="position-cell"><span>Y <small>m</small></span><strong id="p-pos-y">0.000</strong></div>
+              <div class="position-cell"><span>φ <small>deg</small></span><strong id="p-pos-phi">0.0°</strong></div>
+            </div>
+            <div class="metric-row">
+              <div><span>REACH <small>m</small></span><b id="p-reach">0.000 m</b></div>
+              <div><span>HEIGHT Z <small>fixed</small></span><b id="p-height">0.000 m</b></div>
+              <div><span>STATUS</span><b id="p-reach-status" class="status-chip chip-neutral">JOINT-SPACE CONTROL</b></div>
+            </div>
+            <div class="frames-block">
+              <div class="frames-title">ABSOLUTE LINK ANGLES <small>MEASURED FROM THE FLOOR +X AXIS</small></div>
+              <div id="p-joint-abs" class="angle-chips"></div>
+            </div>
+            <p class="assumption-note"><span>WHY 3 DOF</span> A planar arm mounted on the floor has three controlled quantities — X, Y and tool angle φ. Its Z position is fixed by the mount, so it cannot lift or tilt out of the plane.</p>
+          </section>
+
+          <section class="panel-section geometry-section">
+            <div class="section-heading">
+              <div><p class="section-kicker">03 / GEOMETRY</p><h2>Link table</h2></div>
+              <span class="unit-chip">SI UNITS</span>
+            </div>
+            <p class="section-description">Three links in series. The wrist joint holds the tool; its tip defines the measured point.</p>
+            <div class="table-wrap">
+              <table id="p-link-table">
+                <thead><tr><th>i</th><th>Lᵢ <small>m</small></th><th>χᵢ <small>deg</small></th><th>from</th></tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div class="frames-block">
+              <div class="frames-title">FRAME ORIGINS <small>FLOOR COORDINATES · x, y · m</small></div>
+              <div id="p-frames" class="frame-list"></div>
+            </div>
+          </section>
+
+          <section class="panel-section math-section">
+            <div class="section-heading">
+              <div><p class="section-kicker">04 / CALCULATION</p><h2>Planar kinematics</h2></div>
+              <span class="unit-chip">LIVE</span>
+            </div>
+            <div class="equation-card">
+              <div class="equation-main">x = Σ Lᵢ cos(θ₁ + … + θᵢ)</div>
+              <div class="equation-main">y = Σ Lᵢ sin(θ₁ + … + θᵢ)</div>
+              <div class="equation-rule"></div>
+              <div class="equation-main">φ = θ₁ + θ₂ + θ₃</div>
+              <div class="equation-sub">θᵢ relative to the previous link &nbsp;·&nbsp; sum θ₁+…+θᵢ = χᵢ absolute</div>
+            </div>
+            <div class="jacobian-block">
+              <div class="frames-title">JACOBIAN <small>J = ∂(x, y, φ) / ∂(θ₁, θ₂, θ₃)</small></div>
+              <div class="table-wrap">
+                <table id="p-jacobian">
+                  <thead><tr><th>∂/∂θ₁</th><th>∂/∂θ₂</th><th>∂/∂θ₃</th></tr></thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+              <div class="metric-row">
+                <div><span>|det J| <small>m³ / rad³</small></span><b id="p-dexterity">0.000</b></div>
+                <div><span>det J <small>signed</small></span><b id="p-jacobian-det">0.000</b></div>
+                <div><span>CONFIG</span><b id="p-dexterity-status" class="status-chip chip-ok">DEXTEROUS</b></div>
+              </div>
+            </div>
+            <details class="dh-formula">
+              <summary>How the inverse solution is found</summary>
+              <div class="matrix-formula" aria-label="Two link law of cosines used for inverse kinematics">
+                <span>D = |TCP − L₃e<sup>iφ</sup>|</span>
+                <span class="bracket">cos θ₂ = (D² − L₁² − L₂²) / 2L₁L₂<br />θ₁ = atan2(y<sub>w</sub>, x<sub>w</sub>) − atan2(L₂ sin θ₂, L₁ + L₂ cos θ₂)<br />θ₃ = φ − θ₁ − θ₂</span>
+              </div>
+              <p class="formula-note">The wrist point w = TCP − L₃[cos φ, sin φ] must sit in the two-link annulus. Elbow up and elbow down are the two mirror answers; |det J| falls to zero on the stretched and folded boundaries.</p>
+            </details>
+            <p class="assumption-note"><span>MODEL NOTE</span> Ideal revolute joints and rigid links, with gravity acting along −Z. Motion, links, and the tool all stay in one horizontal plane.</p>
+          </section>
+
+          <section class="panel-section glossary-section" aria-labelledby="planar-glossary-heading">
+            <div class="section-heading">
+              <div><p class="section-kicker">05 / REFERENCE</p><h2 id="planar-glossary-heading">Plain-language glossary</h2></div>
+            </div>
+            <p class="section-description">Short explanations of the words used in this tab.</p>
+            <dl class="glossary-list">
+              <div class="glossary-item"><dt>Planar arm</dt><dd>An arm whose joints all turn around the same direction — here, straight up out of the floor. Every link sweeps a flat plane.</dd></div>
+              <div class="glossary-item"><dt>Degrees of freedom</dt><dd>The number of independent ways the tool can move. In a plane that is X, Y and tool angle φ, so this arm needs exactly three joints.</dd></div>
+              <div class="glossary-item"><dt>Mounted on the floor</dt><dd>The base is bolted to a horizontal plate. The plane of motion is the floor itself, so the tool never leaves it.</dd></div>
+              <div class="glossary-item"><dt>Absolute vs. joint angle</dt><dd>θᵢ is measured from the previous link; χᵢ adds all upstream joints and is measured from the floor's +X axis.</dd></div>
+              <div class="glossary-item"><dt>Workspace ring</dt><dd>The dashed rings on the floor show how far the tip and the wrist point can reach. Targets outside them are unreachable.</dd></div>
+              <div class="glossary-item"><dt>Elbow up / down</dt><dd>For most goals there are two mirror poses. Either works; the switch lets you choose which one the arm takes.</dd></div>
+              <div class="glossary-item"><dt>Goal pose (inverse kinematics)</dt><dd>Instead of setting angles, you give the tool a position and angle, and the maths works out the joint angles.</dd></div>
+              <div class="glossary-item"><dt>Jacobian determinant</dt><dd>How freely the tip can move in all directions. At zero the arm is stretched or folded and some directions become impossible.</dd></div>
+              <div class="glossary-item"><dt>Singularity</dt><dd>A pose where the arm loses a usable direction of motion, shown here by the SINGULAR flag.</dd></div>
+            </dl>
+          </section>
+          <footer class="panel-footer">KINEMATICS LAB <span>·</span> 3R PLANAR ARM · FLOOR MOUNT</footer>
+        </aside>
+      </section>
     </main>
     <script type="module" src="/src/main.js"></script>
   </body>
